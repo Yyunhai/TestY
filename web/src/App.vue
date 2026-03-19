@@ -1,39 +1,32 @@
 <template>
-  <main class="app-shell">
-    <section v-if="!currentUser" class="auth-view">
-      <div class="auth-hero">
-        <p class="eyebrow">TestY Account Center</p>
-        <h1>一个界面专注登录，一个界面专注使用。</h1>
-        <p class="hero-text">
-          未登录时只展示账号相关操作；登录成功后，再进入项目工作台，页面逻辑更清晰，也更接近真实产品体验。
+  <main class="page" :class="themeClass">
+    <section v-if="!currentUser" class="auth-layout">
+      <aside class="brand-panel">
+        <div class="brand-top">
+          <p class="eyebrow">TestY</p>
+          <button class="theme-button" type="button" @click="toggleTheme">
+            {{ isDarkMode ? "浅色模式" : "暗色模式" }}
+          </button>
+        </div>
+        <h1>简洁一点，更像真正的登录页。</h1>
+        <p class="lead">
+          这里只保留账号操作本身。注册、登录、找回密码都集中在一个区域里，不再堆叠多余说明。
         </p>
 
-        <div class="hero-points">
-          <article class="point-card">
-            <span class="point-label">账号规则</span>
-            <strong>用户名至少 6 位</strong>
-            <p>邮箱用于找回密码，密码当前规则为至少 6 位。</p>
-          </article>
-          <article class="point-card">
-            <span class="point-label">开发方式</span>
-            <strong>Vue + Spring Boot</strong>
-            <p>前端位于 <code>web/</code>，后端通过本地 MySQL 保存账号信息。</p>
-          </article>
-          <article class="point-card">
-            <span class="point-label">当前能力</span>
-            <strong>注册、登录、找回密码</strong>
-            <p>所有认证能力都通过同一套后端接口完成。</p>
-          </article>
+        <div class="brand-footer">
+          <span class="mini-chip">Vue</span>
+          <span class="mini-chip">Spring Boot</span>
+          <span class="mini-chip">MySQL</span>
         </div>
-      </div>
+      </aside>
 
-      <div class="auth-card fade-up">
-        <div class="card-headline">
+      <section class="auth-card fade-up">
+        <div class="auth-head">
           <div>
-            <p class="section-tag">欢迎使用</p>
-            <h2>{{ authPanelTitle }}</h2>
+            <p class="section-tag">账号中心</p>
+            <h2>{{ authTitle }}</h2>
           </div>
-          <span class="state-pill">安全连接</span>
+          <span class="status-badge">安全连接</span>
         </div>
 
         <div class="tab-row">
@@ -56,11 +49,19 @@
         <form v-if="activeTab === 'login'" class="form-grid" @submit.prevent="submitLogin">
           <label>
             <span>用户名或邮箱</span>
-            <input v-model.trim="loginForm.usernameOrEmail" type="text" placeholder="请输入用户名或邮箱" />
+            <input
+              v-model.trim="loginForm.usernameOrEmail"
+              type="text"
+              placeholder="请输入用户名或邮箱"
+            />
           </label>
           <label>
             <span>密码</span>
-            <input v-model="loginForm.password" type="password" placeholder="请输入密码" />
+            <input
+              v-model="loginForm.password"
+              type="password"
+              placeholder="请输入密码"
+            />
           </label>
           <button class="primary-button" type="submit" :disabled="busy">
             {{ busy ? "正在登录..." : "登录" }}
@@ -70,15 +71,29 @@
         <form v-else-if="activeTab === 'register'" class="form-grid" @submit.prevent="submitRegister">
           <label>
             <span>用户名</span>
-            <input v-model.trim="registerForm.username" type="text" minlength="6" placeholder="不少于 6 位" />
+            <input
+              v-model.trim="registerForm.username"
+              type="text"
+              minlength="6"
+              placeholder="不少于 6 位"
+            />
           </label>
           <label>
             <span>邮箱</span>
-            <input v-model.trim="registerForm.email" type="email" placeholder="name@example.com" />
+            <input
+              v-model.trim="registerForm.email"
+              type="email"
+              placeholder="name@example.com"
+            />
           </label>
           <label>
             <span>密码</span>
-            <input v-model="registerForm.password" type="password" minlength="6" placeholder="不少于 6 位" />
+            <input
+              v-model="registerForm.password"
+              type="password"
+              minlength="6"
+              placeholder="不少于 6 位"
+            />
           </label>
           <button class="primary-button" type="submit" :disabled="busy">
             {{ busy ? "正在提交..." : "注册账号" }}
@@ -88,87 +103,97 @@
         <form v-else class="form-grid" @submit.prevent="submitReset">
           <label>
             <span>用户名</span>
-            <input v-model.trim="resetForm.username" type="text" minlength="6" placeholder="请输入用户名" />
+            <input
+              v-model.trim="resetForm.username"
+              type="text"
+              minlength="6"
+              placeholder="请输入用户名"
+            />
           </label>
           <label>
             <span>邮箱</span>
-            <input v-model.trim="resetForm.email" type="email" placeholder="请输入注册邮箱" />
+            <input
+              v-model.trim="resetForm.email"
+              type="email"
+              placeholder="请输入注册邮箱"
+            />
           </label>
           <label>
             <span>新密码</span>
-            <input v-model="resetForm.newPassword" type="password" minlength="6" placeholder="请输入新密码" />
+            <input
+              v-model="resetForm.newPassword"
+              type="password"
+              minlength="6"
+              placeholder="请输入新密码"
+            />
           </label>
           <button class="primary-button" type="submit" :disabled="busy">
             {{ busy ? "正在提交..." : "重置密码" }}
           </button>
         </form>
 
-        <div class="api-hint">
-          <span>接口地址</span>
-          <code>/api/auth/register</code>
-          <code>/api/auth/login</code>
-          <code>/api/auth/reset-password</code>
-        </div>
-      </div>
+        <p class="hint-text">
+          用户名与密码长度均不少于 6 位，邮箱用于找回密码。
+        </p>
+      </section>
     </section>
 
-    <section v-else class="workspace-view fade-up">
-      <header class="workspace-header">
+    <section v-else class="dashboard fade-up">
+      <header class="dashboard-head">
         <div>
-          <p class="eyebrow">TestY Workspace</p>
+          <p class="eyebrow">Workspace</p>
           <h1>欢迎回来，{{ currentUser.username }}</h1>
-          <p class="hero-text">
-            你已经完成登录。这里展示当前账号、项目概览和可继续操作的内容。
+          <p class="lead small">
+            当前页面只保留登录后的核心信息，方便继续开发和调试。
           </p>
         </div>
 
-        <div class="header-actions">
-          <button class="ghost-button" type="button" @click="loadOverview" :disabled="overviewLoading">
-            {{ overviewLoading ? "正在刷新..." : "刷新概览" }}
+        <div class="head-actions">
+          <button class="theme-button" type="button" @click="toggleTheme">
+            {{ isDarkMode ? "浅色模式" : "暗色模式" }}
+          </button>
+          <button class="secondary-button" type="button" @click="loadOverview" :disabled="overviewLoading">
+            {{ overviewLoading ? "刷新中..." : "刷新概览" }}
           </button>
           <button class="danger-button" type="button" @click="logout">退出登录</button>
         </div>
       </header>
 
-      <section class="workspace-grid">
-        <article class="panel profile-panel">
-          <div class="panel-title">
+      <section class="dashboard-grid">
+        <article class="panel account-panel">
+          <div class="panel-head">
             <div>
               <p class="section-tag">当前账号</p>
               <h2>登录信息</h2>
             </div>
-            <span class="status-chip">已登录</span>
+            <span class="online-mark">已登录</span>
           </div>
 
-          <div class="profile-card">
-            <div class="profile-item">
-              <span>用户名</span>
-              <strong>{{ currentUser.username }}</strong>
-            </div>
-            <div class="profile-item">
-              <span>邮箱</span>
-              <strong>{{ currentUser.email }}</strong>
-            </div>
+          <div class="account-item">
+            <span>用户名</span>
+            <strong>{{ currentUser.username }}</strong>
           </div>
 
-          <div class="tip-box">
-            <strong>当前状态</strong>
-            <p>登录状态保存在浏览器本地，刷新页面后仍会保留，直到你主动退出登录。</p>
+          <div class="account-item">
+            <span>邮箱</span>
+            <strong>{{ currentUser.email }}</strong>
           </div>
         </article>
 
         <article class="panel overview-panel">
-          <div class="panel-title">
+          <div class="panel-head">
             <div>
               <p class="section-tag">项目概览</p>
-              <h2>后端运行信息</h2>
+              <h2>运行状态</h2>
             </div>
           </div>
 
-          <p v-if="overviewError" class="overview-error">{{ overviewError }}</p>
+          <p v-if="overviewError" class="message-bar error">
+            {{ overviewError }}
+          </p>
 
           <template v-else>
-            <div class="overview-metrics">
+            <div class="metric-grid">
               <article class="metric-card">
                 <span>应用名称</span>
                 <strong>{{ overview.applicationName || "加载中" }}</strong>
@@ -179,13 +204,13 @@
               </article>
               <article class="metric-card metric-wide">
                 <span>运行说明</span>
-                <strong>{{ overview.message || "正在获取项目状态..." }}</strong>
+                <strong>{{ overview.message || "正在获取后端状态..." }}</strong>
               </article>
             </div>
 
-            <div class="module-panel">
-              <div class="module-panel-head">
-                <span class="section-tag">模块列表</span>
+            <div class="module-box">
+              <div class="module-head">
+                <span class="section-tag module-tag">模块列表</span>
                 <span class="module-count">{{ overview.modules.length }} 个模块</span>
               </div>
               <div class="module-list">
@@ -196,30 +221,6 @@
             </div>
           </template>
         </article>
-
-        <article class="panel action-panel">
-          <div class="panel-title">
-            <div>
-              <p class="section-tag">下一步</p>
-              <h2>你现在可以做什么</h2>
-            </div>
-          </div>
-
-          <div class="action-list">
-            <div class="action-item">
-              <strong>查看接口状态</strong>
-              <p>访问 <code>/api/overview</code>，确认后端接口和模块信息正常返回。</p>
-            </div>
-            <div class="action-item">
-              <strong>继续扩展业务</strong>
-              <p>可以在当前登录态基础上继续接入用户中心、权限控制或业务页面。</p>
-            </div>
-            <div class="action-item">
-              <strong>打包部署</strong>
-              <p>前端构建后会进入 Spring Boot 静态资源目录，也可以继续使用 Docker 部署。</p>
-            </div>
-          </div>
-        </article>
       </section>
     </section>
   </main>
@@ -227,6 +228,7 @@
 
 <script>
 const SESSION_KEY = "testy-user";
+const THEME_KEY = "testy-theme";
 
 function emptyOverview() {
   return {
@@ -255,6 +257,7 @@ export default {
         text: ""
       },
       currentUser: null,
+      theme: "light",
       overview: emptyOverview(),
       loginForm: {
         usernameOrEmail: "",
@@ -273,17 +276,24 @@ export default {
     };
   },
   computed: {
-    authPanelTitle() {
+    authTitle() {
       if (this.activeTab === "register") {
-        return "创建一个新账号";
+        return "创建你的账号";
       }
       if (this.activeTab === "reset") {
-        return "通过邮箱找回密码";
+        return "找回密码";
       }
-      return "登录到你的账号";
+      return "登录到 TestY";
+    },
+    isDarkMode() {
+      return this.theme === "dark";
+    },
+    themeClass() {
+      return this.isDarkMode ? "theme-dark" : "theme-light";
     }
   },
   mounted() {
+    this.theme = this.resolveTheme();
     const savedUser = window.localStorage.getItem(SESSION_KEY);
     if (!savedUser) {
       return;
@@ -297,6 +307,16 @@ export default {
     }
   },
   methods: {
+    resolveTheme() {
+      const savedTheme = window.localStorage.getItem(THEME_KEY);
+      if (savedTheme === "dark" || savedTheme === "light") {
+        return savedTheme;
+      }
+
+      return window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches
+        ? "dark"
+        : "light";
+    },
     switchTab(tab) {
       this.activeTab = tab;
       this.clearMessage();
@@ -306,6 +326,10 @@ export default {
     },
     clearMessage() {
       this.message = { type: "info", text: "" };
+    },
+    toggleTheme() {
+      this.theme = this.isDarkMode ? "light" : "dark";
+      window.localStorage.setItem(THEME_KEY, this.theme);
     },
     async submitLogin() {
       this.busy = true;
@@ -419,22 +443,40 @@ export default {
 
 <style>
 :root {
-  color-scheme: light;
-  --bg-base: #f6f1e8;
-  --bg-soft: #fbf7f1;
-  --surface: rgba(255, 252, 247, 0.9);
-  --surface-strong: #fffefa;
-  --ink: #18212a;
-  --muted: #6c756d;
-  --line: rgba(24, 33, 42, 0.1);
-  --primary: #0f6a68;
-  --primary-deep: #173d52;
-  --accent: #d46c2f;
-  --accent-soft: rgba(212, 108, 47, 0.12);
-  --success: #136a49;
-  --success-soft: rgba(19, 106, 73, 0.12);
+  --bg: #f6efe6;
+  --paper: rgba(255, 252, 247, 0.9);
+  --paper-strong: #fffdfa;
+  --ink: #1a2128;
+  --muted: #66707a;
+  --line: rgba(26, 33, 40, 0.1);
+  --primary: #0e6b69;
+  --primary-deep: #17394d;
+  --accent: #ca6b2c;
+  --success: #176946;
+  --success-soft: rgba(23, 105, 70, 0.12);
   --danger: #b42318;
   --danger-soft: rgba(180, 35, 24, 0.12);
+}
+
+.theme-light {
+  color-scheme: light;
+}
+
+.theme-dark {
+  color-scheme: dark;
+  --bg: #11161c;
+  --paper: rgba(24, 31, 38, 0.88);
+  --paper-strong: #1b232b;
+  --ink: #edf3f7;
+  --muted: #9ca9b5;
+  --line: rgba(237, 243, 247, 0.1);
+  --primary: #7ae0d4;
+  --primary-deep: #9bd8ff;
+  --accent: #ffab6b;
+  --success: #7fe0a0;
+  --success-soft: rgba(127, 224, 160, 0.14);
+  --danger: #ff8f84;
+  --danger-soft: rgba(255, 143, 132, 0.14);
 }
 
 * {
@@ -444,11 +486,7 @@ export default {
 body {
   margin: 0;
   font-family: "Trebuchet MS", "Segoe UI", "Microsoft YaHei", sans-serif;
-  color: var(--ink);
-  background:
-    radial-gradient(circle at left top, rgba(15, 106, 104, 0.18), transparent 24%),
-    radial-gradient(circle at right bottom, rgba(212, 108, 47, 0.14), transparent 26%),
-    linear-gradient(135deg, #f4ede2 0%, #f9f6ef 48%, #eef4f2 100%);
+  background: var(--bg);
 }
 
 button,
@@ -459,77 +497,101 @@ input {
 code {
   padding: 2px 8px;
   border-radius: 999px;
-  background: rgba(23, 61, 82, 0.08);
+  background: rgba(23, 57, 77, 0.08);
 }
 
 #app {
   min-height: 100vh;
 }
 
-.app-shell {
-  width: min(1220px, calc(100% - 32px));
+.page {
+  width: min(1120px, calc(100% - 32px));
   margin: 0 auto;
-  padding: 34px 0 56px;
+  padding: 36px 0 52px;
+  min-height: 100vh;
+  color: var(--ink);
+  background:
+    radial-gradient(circle at top left, rgba(14, 107, 105, 0.16), transparent 22%),
+    radial-gradient(circle at bottom right, rgba(202, 107, 44, 0.12), transparent 28%),
+    linear-gradient(135deg, rgba(245, 238, 228, 0.96) 0%, rgba(248, 247, 242, 0.9) 55%, rgba(237, 244, 242, 0.86) 100%);
 }
 
-.auth-view {
-  display: grid;
-  grid-template-columns: minmax(0, 1.1fr) minmax(360px, 460px);
-  gap: 26px;
-  align-items: start;
+.theme-dark.page {
+  background:
+    radial-gradient(circle at top left, rgba(70, 181, 165, 0.18), transparent 22%),
+    radial-gradient(circle at bottom right, rgba(255, 171, 107, 0.16), transparent 28%),
+    linear-gradient(135deg, rgba(14, 18, 24, 0.98) 0%, rgba(18, 24, 31, 0.94) 55%, rgba(15, 22, 29, 0.96) 100%);
 }
 
-.workspace-view {
+.auth-layout {
   display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(340px, 430px);
   gap: 24px;
+  align-items: stretch;
 }
 
-.auth-hero,
+.brand-panel,
 .auth-card,
-.panel,
-.workspace-header {
+.dashboard-head,
+.panel {
   border: 1px solid var(--line);
-  border-radius: 30px;
-  background: var(--surface);
-  box-shadow: 0 24px 60px rgba(24, 33, 42, 0.08);
+  border-radius: 28px;
+  background: var(--paper);
+  box-shadow: 0 22px 60px rgba(26, 33, 40, 0.08);
   backdrop-filter: blur(12px);
 }
 
-.auth-hero {
-  padding: 36px;
+.brand-panel {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 34px;
   background:
-    linear-gradient(145deg, rgba(255, 255, 255, 0.74), rgba(255, 248, 239, 0.92)),
-    var(--surface);
+    linear-gradient(160deg, rgba(255, 255, 255, 0.76), rgba(248, 241, 233, 0.92)),
+    var(--paper);
+}
+
+.theme-dark .brand-panel {
+  background:
+    linear-gradient(160deg, rgba(30, 38, 47, 0.88), rgba(18, 25, 31, 0.94)),
+    var(--paper);
 }
 
 .auth-card,
 .panel {
-  padding: 26px;
+  padding: 24px;
 }
 
-.workspace-header {
-  display: flex;
-  justify-content: space-between;
-  gap: 24px;
-  align-items: center;
-  padding: 28px 30px;
-}
-
-.workspace-grid {
+.dashboard {
   display: grid;
-  grid-template-columns: minmax(300px, 360px) minmax(0, 1fr);
   gap: 22px;
 }
 
-.overview-panel {
-  grid-row: span 2;
+.dashboard-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 28px 30px;
+}
+
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: minmax(280px, 320px) minmax(0, 1fr);
+  gap: 22px;
+}
+
+.brand-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
 }
 
 .eyebrow,
-.section-tag,
-.point-label {
-  margin: 0 0 10px;
+.section-tag {
   display: block;
+  margin: 0 0 10px;
   color: var(--primary);
   font-size: 12px;
   font-weight: 700;
@@ -537,69 +599,40 @@ code {
   text-transform: uppercase;
 }
 
-.auth-hero h1,
-.workspace-header h1 {
+.brand-panel h1,
+.dashboard-head h1 {
   margin: 0;
-  font-size: clamp(36px, 6vw, 72px);
-  line-height: 0.96;
+  font-size: clamp(36px, 5.8vw, 68px);
+  line-height: 0.95;
   letter-spacing: -0.04em;
 }
 
-.workspace-header h1 {
-  font-size: clamp(30px, 4vw, 52px);
+.dashboard-head h1 {
+  font-size: clamp(30px, 4vw, 48px);
 }
 
-.hero-text {
+.lead {
   margin: 18px 0 0;
   color: var(--muted);
   font-size: 18px;
   line-height: 1.8;
-  max-width: 760px;
 }
 
-.hero-points {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 14px;
-  margin-top: 28px;
+.lead.small {
+  font-size: 16px;
 }
 
-.point-card {
-  padding: 18px;
-  border: 1px solid var(--line);
-  border-radius: 22px;
-  background: rgba(255, 255, 255, 0.75);
-}
-
-.point-card strong {
-  display: block;
-  font-size: 20px;
-  line-height: 1.4;
-}
-
-.point-card p {
-  margin: 8px 0 0;
-  color: var(--muted);
-  line-height: 1.7;
-}
-
-.card-headline,
-.panel-title {
+.brand-footer {
   display: flex;
-  justify-content: space-between;
-  gap: 16px;
-  align-items: flex-start;
-  margin-bottom: 18px;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 24px;
 }
 
-.card-headline h2,
-.panel-title h2 {
-  margin: 0;
-  font-size: 30px;
-}
-
-.state-pill,
-.status-chip {
+.mini-chip,
+.status-badge,
+.online-mark,
+.module-count {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -610,12 +643,58 @@ code {
   font-weight: 700;
 }
 
-.state-pill {
-  background: rgba(15, 106, 104, 0.1);
+.mini-chip {
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid var(--line);
+}
+
+.theme-button {
+  min-height: 40px;
+  padding: 0 14px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.72);
+  color: var(--ink);
+  cursor: pointer;
+  font-weight: 700;
+  transition: transform 0.18s ease, background 0.18s ease;
+}
+
+.theme-dark .theme-button,
+.theme-dark .mini-chip,
+.theme-dark .tab-button,
+.theme-dark .secondary-button,
+.theme-dark .account-item,
+.theme-dark .metric-card,
+.theme-dark .module-box {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.theme-button:hover {
+  transform: translateY(-1px);
+}
+
+.auth-head,
+.panel-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: flex-start;
+  margin-bottom: 18px;
+}
+
+.auth-head h2,
+.panel-head h2 {
+  margin: 0;
+  font-size: 28px;
+}
+
+.status-badge {
+  background: rgba(14, 107, 105, 0.1);
   color: var(--primary);
 }
 
-.status-chip {
+.online-mark {
   background: var(--success-soft);
   color: var(--success);
 }
@@ -631,7 +710,7 @@ code {
   min-height: 44px;
   border: 1px solid var(--line);
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.84);
+  background: rgba(255, 255, 255, 0.82);
   color: var(--muted);
   cursor: pointer;
   font-weight: 700;
@@ -643,13 +722,13 @@ code {
 }
 
 .tab-button.active {
-  background: linear-gradient(135deg, var(--ink), var(--primary-deep));
   border-color: transparent;
+  background: linear-gradient(135deg, var(--ink), var(--primary-deep));
   color: #fff;
 }
 
 .message-bar {
-  margin: 0 0 18px;
+  margin: 0 0 16px;
   padding: 14px 16px;
   border-radius: 18px;
   font-size: 14px;
@@ -657,7 +736,7 @@ code {
 }
 
 .message-bar.info {
-  background: rgba(23, 61, 82, 0.08);
+  background: rgba(23, 57, 77, 0.08);
   color: var(--primary-deep);
 }
 
@@ -692,36 +771,41 @@ code {
   padding: 0 16px;
   border: 1px solid var(--line);
   border-radius: 16px;
-  background: rgba(255, 255, 255, 0.92);
+  background: rgba(255, 255, 255, 0.94);
   transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
+}
+
+.theme-dark .form-grid input {
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--ink);
 }
 
 .form-grid input:focus {
   outline: none;
-  border-color: rgba(15, 106, 104, 0.4);
-  box-shadow: 0 0 0 4px rgba(15, 106, 104, 0.08);
+  border-color: rgba(14, 107, 105, 0.45);
+  box-shadow: 0 0 0 4px rgba(14, 107, 105, 0.08);
   transform: translateY(-1px);
 }
 
 .primary-button,
-.ghost-button,
+.secondary-button,
 .danger-button {
   min-height: 48px;
   padding: 0 18px;
   border-radius: 999px;
-  cursor: pointer;
   font-weight: 700;
+  cursor: pointer;
   transition: transform 0.18s ease, opacity 0.18s ease;
 }
 
 .primary-button:hover,
-.ghost-button:hover,
+.secondary-button:hover,
 .danger-button:hover {
   transform: translateY(-1px);
 }
 
 .primary-button:disabled,
-.ghost-button:disabled,
+.secondary-button:disabled,
 .danger-button:disabled {
   opacity: 0.7;
   cursor: wait;
@@ -730,11 +814,11 @@ code {
 .primary-button {
   border: 0;
   color: #fff;
-  background: linear-gradient(135deg, #17212a, #214154);
-  box-shadow: 0 18px 36px rgba(24, 33, 42, 0.16);
+  background: linear-gradient(135deg, #18212a, #244559);
+  box-shadow: 0 18px 34px rgba(26, 33, 40, 0.16);
 }
 
-.ghost-button {
+.secondary-button {
   border: 1px solid var(--line);
   background: rgba(255, 255, 255, 0.88);
   color: var(--ink);
@@ -743,56 +827,49 @@ code {
 .danger-button {
   border: 0;
   color: #fff;
-  background: linear-gradient(135deg, #8f2e22, #b42318);
+  background: linear-gradient(135deg, #8c2d23, #b42318);
 }
 
-.api-hint {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 20px;
+.hint-text {
+  margin: 18px 0 0;
   color: var(--muted);
-  font-size: 13px;
+  font-size: 14px;
+  line-height: 1.7;
 }
 
-.api-hint span {
-  width: 100%;
-  font-weight: 700;
-}
-
-.header-actions {
+.head-actions {
   display: flex;
   flex-wrap: wrap;
-  justify-content: flex-end;
   gap: 12px;
 }
 
-.profile-card,
-.tip-box,
-.module-panel,
-.metric-card,
-.action-item {
-  border: 1px solid var(--line);
-  border-radius: 22px;
-  background: rgba(255, 255, 255, 0.78);
-}
-
-.profile-card {
-  padding: 18px;
+.account-panel {
   display: grid;
+  align-content: start;
   gap: 14px;
 }
 
-.profile-item span,
-.metric-card span,
-.module-count {
+.account-item,
+.metric-card,
+.module-box {
+  border: 1px solid var(--line);
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.8);
+}
+
+.account-item {
+  padding: 18px;
+}
+
+.account-item span,
+.metric-card span {
   color: var(--muted);
   font-size: 13px;
   font-weight: 700;
   letter-spacing: 0.04em;
 }
 
-.profile-item strong,
+.account-item strong,
 .metric-card strong {
   display: block;
   margin-top: 8px;
@@ -800,23 +877,7 @@ code {
   line-height: 1.5;
 }
 
-.tip-box {
-  margin-top: 16px;
-  padding: 18px;
-}
-
-.tip-box strong {
-  display: block;
-  font-size: 18px;
-}
-
-.tip-box p {
-  margin: 8px 0 0;
-  color: var(--muted);
-  line-height: 1.7;
-}
-
-.overview-metrics {
+.metric-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 14px;
@@ -830,16 +891,20 @@ code {
   grid-column: 1 / -1;
 }
 
-.module-panel {
+.module-box {
   margin-top: 16px;
   padding: 18px;
 }
 
-.module-panel-head {
+.module-head {
   display: flex;
   justify-content: space-between;
-  gap: 12px;
   align-items: center;
+  gap: 12px;
+}
+
+.module-tag {
+  margin-bottom: 0;
 }
 
 .module-list {
@@ -855,38 +920,13 @@ code {
   min-height: 38px;
   padding: 0 14px;
   border-radius: 999px;
-  background: #fff;
   border: 1px solid var(--line);
+  background: var(--paper-strong);
   font-weight: 700;
 }
 
-.action-list {
-  display: grid;
-  gap: 14px;
-}
-
-.action-item {
-  padding: 18px;
-}
-
-.action-item strong {
-  display: block;
-  font-size: 18px;
-}
-
-.action-item p {
-  margin: 8px 0 0;
-  color: var(--muted);
-  line-height: 1.7;
-}
-
-.overview-error {
-  margin: 0;
-  padding: 14px 16px;
-  border-radius: 18px;
-  background: var(--danger-soft);
-  color: var(--danger);
-  line-height: 1.7;
+.theme-dark .module-chip {
+  background: rgba(255, 255, 255, 0.06);
 }
 
 .fade-up {
@@ -904,51 +944,49 @@ code {
   }
 }
 
-@media (max-width: 1040px) {
-  .auth-view,
-  .workspace-grid {
+@media (max-width: 980px) {
+  .auth-layout,
+  .dashboard-grid {
     grid-template-columns: 1fr;
   }
 
-  .hero-points,
-  .overview-metrics {
+  .metric-grid {
     grid-template-columns: 1fr;
   }
 }
 
 @media (max-width: 720px) {
-  .app-shell {
-    width: min(100% - 20px, 1220px);
-    padding: 20px 0 40px;
+  .page {
+    width: min(100% - 20px, 1120px);
+    padding: 20px 0 38px;
   }
 
-  .auth-hero,
+  .brand-panel,
   .auth-card,
-  .panel,
-  .workspace-header {
+  .dashboard-head,
+  .panel {
     padding: 20px;
     border-radius: 24px;
   }
 
-  .workspace-header,
-  .card-headline,
-  .panel-title,
-  .module-panel-head {
+  .dashboard-head,
+  .auth-head,
+  .panel-head,
+  .module-head,
+  .brand-top {
     flex-direction: column;
     align-items: flex-start;
   }
 
-  .tab-row,
-  .header-actions {
+  .tab-row {
     grid-template-columns: 1fr;
+  }
+
+  .head-actions {
     width: 100%;
   }
 
-  .tab-row {
-    display: grid;
-  }
-
-  .ghost-button,
+  .secondary-button,
   .danger-button {
     width: 100%;
   }
