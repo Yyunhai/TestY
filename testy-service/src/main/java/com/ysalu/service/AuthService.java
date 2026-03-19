@@ -13,6 +13,7 @@ import org.springframework.stereotype.Service;
  */
 public class AuthService {
 
+    // 这里只做基础邮箱格式校验，核心目标是统一输入并拦截明显非法值。
     private static final Pattern EMAIL_PATTERN =
             Pattern.compile("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+$");
 
@@ -32,10 +33,12 @@ public class AuthService {
         String normalizedEmail = normalizeEmail(email);
         validatePassword(rawPassword);
 
+        // 先校验用户名唯一性，避免创建重复账号。
         if (userAccountRepository.existsByUsername(normalizedUsername)) {
             throw new AuthException("Username already exists.");
         }
 
+        // 邮箱同样作为唯一标识之一，重复时直接中断注册。
         if (userAccountRepository.existsByEmail(normalizedEmail)) {
             throw new AuthException("Email already exists.");
         }
@@ -43,6 +46,7 @@ public class AuthService {
         UserAccount userAccount = new UserAccount();
         userAccount.setUsername(normalizedUsername);
         userAccount.setEmail(normalizedEmail);
+        // 密码只保存编码后的摘要，不直接落库存储明文。
         userAccount.setPasswordHash(passwordEncoder.encode(rawPassword));
         return userAccountRepository.save(userAccount);
     }
@@ -56,12 +60,14 @@ public class AuthService {
             throw new AuthException("Username/email and password are required.");
         }
 
+        // 输入里包含 @ 时按邮箱登录，否则按用户名登录。
         UserAccount userAccount = principal.contains("@")
                 ? userAccountRepository.findByEmail(normalizeEmail(principal))
                 .orElseThrow(() -> new AuthException("Account does not exist."))
                 : userAccountRepository.findByUsername(principal)
                 .orElseThrow(() -> new AuthException("Account does not exist."));
 
+        // 统一交给密码编码器校验摘要是否匹配。
         if (!passwordEncoder.matches(rawPassword, userAccount.getPasswordHash())) {
             throw new AuthException("Incorrect password.");
         }
@@ -77,6 +83,7 @@ public class AuthService {
         String normalizedEmail = normalizeEmail(email);
         validatePassword(newPassword);
 
+        // 先通过邮箱锁定账号，再核对用户名，降低误重置其他账号的风险。
         UserAccount userAccount = userAccountRepository.findByEmail(normalizedEmail)
                 .orElseThrow(() -> new AuthException("Account does not exist."));
 
@@ -84,6 +91,7 @@ public class AuthService {
             throw new AuthException("Username and email do not match.");
         }
 
+        // 新密码沿用相同的加密策略保存。
         userAccount.setPasswordHash(passwordEncoder.encode(newPassword));
         return userAccountRepository.save(userAccount);
     }

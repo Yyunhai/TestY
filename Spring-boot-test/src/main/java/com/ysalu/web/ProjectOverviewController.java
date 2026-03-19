@@ -23,6 +23,7 @@ public class ProjectOverviewController {
      * 返回当前应用的概览信息。
      */
     public ProjectOverview getOverview() {
+        // 该接口只读且可重复调用，适合前端手动刷新工作台概览。
         return projectOverviewService.buildOverview();
     }
 }

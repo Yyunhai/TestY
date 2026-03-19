@@ -30,6 +30,7 @@ public class AuthController {
      * 处理用户注册请求。
      */
     public AuthResponse register(@Valid @RequestBody RegisterRequest request) {
+        // 控制层保持轻量，核心注册规则集中在服务层处理。
         UserAccount userAccount = authService.register(
                 request.getUsername(),
                 request.getEmail(),
@@ -48,6 +49,7 @@ public class AuthController {
      * 处理用户登录请求。
      */
     public AuthResponse login(@Valid @RequestBody LoginRequest request) {
+        // 这里只返回前端展示所需的最小用户信息，避免暴露敏感字段。
         UserAccount userAccount = authService.login(
                 request.getUsernameOrEmail(),
                 request.getPassword()
@@ -65,6 +67,7 @@ public class AuthController {
      * 处理忘记密码后的密码重置请求。
      */
     public AuthResponse resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
+        // 重置密码接口沿用统一响应结构，前端可以复用同一套消息提示逻辑。
         UserAccount userAccount = authService.resetPassword(
                 request.getUsername(),
                 request.getEmail(),

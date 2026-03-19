@@ -18,6 +18,7 @@ public class ProjectOverviewService {
      * 收集当前应用的名称、运行环境和模块信息。
      */
     public ProjectOverview buildOverview() {
+        // 在服务层集中组装首页信息，避免控制层直接拼接多个数据来源。
         return new ProjectOverview(
                 "TestY",
                 System.getProperty("java.version"),

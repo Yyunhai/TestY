@@ -227,10 +227,12 @@
 </template>
 
 <script>
+// 本地缓存键：一个保存登录后的最小用户信息，一个保存主题偏好。
 const SESSION_KEY = "testy-user";
 const THEME_KEY = "testy-theme";
 
 function emptyOverview() {
+  // 在接口未返回、请求失败或退出登录时，统一使用空概览重置右侧展示区。
   return {
     applicationName: "",
     javaVersion: "",
@@ -243,6 +245,7 @@ export default {
   name: "App",
   data() {
     return {
+      // 三个标签页共用同一张卡片，activeTab 决定当前激活哪一种表单。
       tabs: [
         { key: "login", label: "登录" },
         { key: "register", label: "注册" },
@@ -293,6 +296,7 @@ export default {
     }
   },
   mounted() {
+    // 首屏先恢复主题，再尝试恢复本地登录态，提升刷新后的连续使用体验。
     this.theme = this.resolveTheme();
     const savedUser = window.localStorage.getItem(SESSION_KEY);
     if (!savedUser) {
@@ -308,6 +312,7 @@ export default {
   },
   methods: {
     resolveTheme() {
+      // 用户手动切换过主题时优先使用本地值，否则退回系统深浅色偏好。
       const savedTheme = window.localStorage.getItem(THEME_KEY);
       if (savedTheme === "dark" || savedTheme === "light") {
         return savedTheme;
@@ -318,6 +323,7 @@ export default {
         : "light";
     },
     switchTab(tab) {
+      // 切换表单时清空旧消息，避免上一操作的提示影响当前场景。
       this.activeTab = tab;
       this.clearMessage();
     },
@@ -332,6 +338,7 @@ export default {
       window.localStorage.setItem(THEME_KEY, this.theme);
     },
     async submitLogin() {
+      // 登录成功后缓存最小用户信息，并立即拉取工作台概览。
       this.busy = true;
       this.clearMessage();
 
@@ -349,6 +356,7 @@ export default {
       }
     },
     async submitRegister() {
+      // 注册成功后预填其它表单，减少用户重复输入。
       this.busy = true;
       this.clearMessage();
 
@@ -368,6 +376,7 @@ export default {
       }
     },
     async submitReset() {
+      // 重置密码成功后切回登录页，引导用户直接使用新密码登录。
       this.busy = true;
       this.clearMessage();
 
@@ -384,6 +393,7 @@ export default {
       }
     },
     async loadOverview() {
+      // 概览区单独维护加载与报错状态，不影响用户账号面板显示。
       this.overviewLoading = true;
       this.overviewError = "";
 
@@ -401,6 +411,7 @@ export default {
       }
     },
     logout() {
+      // 退出时同步清理登录态和依赖登录态展示的概览数据。
       this.currentUser = null;
       this.overview = emptyOverview();
       this.overviewError = "";
@@ -409,6 +420,7 @@ export default {
       this.activeTab = "login";
     },
     async postJson(url, payload) {
+      // 三个认证接口共用这层请求封装，统一处理 JSON 响应和错误信息提取。
       const response = await fetch(url, {
         method: "POST",
         headers: {
@@ -421,6 +433,7 @@ export default {
       let data = null;
       let text = "";
 
+      // 如果后端没有返回标准 JSON，也尽量把文本错误原样透出给页面消息栏。
       if (contentType.includes("application/json")) {
         data = await response.json();
       } else {

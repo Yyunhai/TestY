@@ -32,6 +32,7 @@ public class ApiExceptionHandler {
      */
     public AuthResponse handleValidationException(MethodArgumentNotValidException exception) {
         FieldError fieldError = exception.getBindingResult().getFieldError();
+        // 优先返回首个字段错误，让前端能先提示用户修复最关键的问题。
         String message = fieldError == null ? "Request is invalid." : fieldError.getDefaultMessage();
         return new AuthResponse(false, message, null, null);
     }
