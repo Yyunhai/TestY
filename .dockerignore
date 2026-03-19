@@ -1,0 +1,7 @@
+.git
+.idea
+**/target
+**/node_modules
+web/dist
+Dockerfile
+docker-compose.yml

@@ -1,8 +1,14 @@
 # Default ignored files
 /shelf/
 /workspace.xml
+/usage.statistics.xml
+/dictionaries/
+/sonarlint/
+/contentModel.xml
 # Editor-based HTTP Client requests
 /httpRequests/
 # Datasource local storage ignored files
 /dataSources/
 /dataSources.local.xml
+/dataSources.ids
+/aws.xml

@@ -1,7 +1,13 @@
+### Maven / Java ###
 target/
+**/target/
 !.mvn/wrapper/maven-wrapper.jar
-!**/src/main/**/target/
-!**/src/test/**/target/
+*.class
+*.log
+logs/
+hs_err_pid*
+replay_pid*
+.mvn/timing.properties
 
 ### IntelliJ IDEA ###
 .idea/modules.xml
@@ -11,6 +17,7 @@ target/
 *.iws
 *.iml
 *.ipr
+out/
 
 ### Eclipse ###
 .apt_generated
@@ -28,11 +35,41 @@ target/
 /nbdist/
 /.nb-gradle/
 build/
-!**/src/main/**/build/
-!**/src/test/**/build/
 
 ### VS Code ###
 .vscode/
+*.code-workspace
 
-### Mac OS ###
+### Node / Frontend ###
+web/node_modules/
+web/dist/
+web/coverage/
+web/.cache/
+web/.eslintcache
+
+### Frontend Build Output Copied To Backend ###
+Spring-boot-test/src/main/resources/static/index.html
+Spring-boot-test/src/main/resources/static/favicon.ico
+Spring-boot-test/src/main/resources/static/css/
+Spring-boot-test/src/main/resources/static/js/
+Spring-boot-test/src/main/resources/static/img/
+Spring-boot-test/src/main/resources/static/fonts/
+
+### Environment Files ###
+.env
+.env.*
+!.env.example
+!.env.*.example
+
+### Local Databases ###
+*.db
+*.sqlite
+*.sqlite3
+*.mv.db
+*.h2.db
+*.trace.db
+
+### OS Files ###
 .DS_Store
+Thumbs.db
+Desktop.ini
