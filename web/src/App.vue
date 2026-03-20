@@ -241,6 +241,12 @@ function emptyOverview() {
   };
 }
 
+function createAuthError(message) {
+  const error = new Error(message || "Authentication required.");
+  error.isAuthError = true;
+  return error;
+}
+
 export default {
   name: "App",
   data() {
@@ -298,17 +304,7 @@ export default {
   mounted() {
     // 首屏先恢复主题，再尝试恢复本地登录态，提升刷新后的连续使用体验。
     this.theme = this.resolveTheme();
-    const savedUser = window.localStorage.getItem(SESSION_KEY);
-    if (!savedUser) {
-      return;
-    }
-
-    try {
-      this.currentUser = JSON.parse(savedUser);
-      this.loadOverview();
-    } catch (error) {
-      window.localStorage.removeItem(SESSION_KEY);
-    }
+    this.restoreSession();
   },
   methods: {
     resolveTheme() {
@@ -337,6 +333,27 @@ export default {
       this.theme = this.isDarkMode ? "light" : "dark";
       window.localStorage.setItem(THEME_KEY, this.theme);
     },
+    clearCurrentSessionState() {
+      this.currentUser = null;
+      this.overview = emptyOverview();
+      this.overviewError = "";
+    },
+    async restoreSession() {
+      try {
+        const data = await this.requestJson("/api/auth/me", {
+          method: "GET",
+          expectEnvelope: true
+        });
+        this.currentUser = { username: data.username, email: data.email };
+        await this.loadOverview();
+      } catch (error) {
+        if (error.isAuthError) {
+          this.clearCurrentSessionState();
+          return;
+        }
+        this.setMessage("error", error.message);
+      }
+    },
     async submitLogin() {
       // 登录成功后缓存最小用户信息，并立即拉取工作台概览。
       this.busy = true;
@@ -345,7 +362,6 @@ export default {
       try {
         const data = await this.postJson("/api/auth/login", this.loginForm);
         this.currentUser = { username: data.username, email: data.email };
-        window.localStorage.setItem(SESSION_KEY, JSON.stringify(this.currentUser));
         this.loginForm.password = "";
         this.setMessage("success", data.message);
         await this.loadOverview();
@@ -398,19 +414,36 @@ export default {
       this.overviewError = "";
 
       try {
-        const response = await fetch("/api/overview");
-        if (!response.ok) {
+        const response = await this.requestJson("/api/overview", {
+          method: "GET"
+        });
+        if (!response) {
           throw new Error("项目概览加载失败，请稍后重试。");
         }
-        this.overview = await response.json();
+        this.overview = response;
       } catch (error) {
         this.overview = emptyOverview();
-        this.overviewError = error.message;
+        if (error.isAuthError) {
+          this.clearCurrentSessionState();
+          this.overviewError = "鐧诲綍宸茶繃鏈燂紝璇疯繃鍚庨噸鏂扮櫥褰曘€?";
+          this.setMessage("info", this.overviewError);
+          this.activeTab = "login";
+        } else {
+          this.overviewError = error.message;
+        }
       } finally {
         this.overviewLoading = false;
       }
     },
-    logout() {
+    async logout() {
+      try {
+        await this.postJson("/api/auth/logout", {});
+      } catch (error) {
+        if (!error.isAuthError) {
+          this.setMessage("error", error.message);
+          return;
+        }
+      }
       // 退出时同步清理登录态和依赖登录态展示的概览数据。
       this.currentUser = null;
       this.overview = emptyOverview();
@@ -419,10 +452,49 @@ export default {
       this.setMessage("info", "你已退出登录。");
       this.activeTab = "login";
     },
+    async requestJson(url, options = {}) {
+      const {
+        expectEnvelope = false,
+        headers = {},
+        ...fetchOptions
+      } = options;
+
+      const response = await fetch(url, {
+        credentials: "include",
+        ...fetchOptions,
+        headers
+      });
+
+      const contentType = response.headers.get("content-type") || "";
+      let data = null;
+      let text = "";
+
+      if (contentType.includes("application/json")) {
+        data = await response.json();
+      } else {
+        text = await response.text();
+      }
+
+      const message = (data && data.message) || text || "璇锋眰澶辫触锛岃绋嶅悗鍐嶈瘯銆?";
+      if (response.status === 401) {
+        throw createAuthError(message);
+      }
+
+      if (!response.ok) {
+        throw new Error(message);
+      }
+
+      if (expectEnvelope && (!data || !data.success)) {
+        throw new Error(message);
+      }
+
+      return data;
+    },
     async postJson(url, payload) {
       // 三个认证接口共用这层请求封装，统一处理 JSON 响应和错误信息提取。
       const response = await fetch(url, {
         method: "POST",
+        credentials: "include",
         headers: {
           "Content-Type": "application/json"
         },
