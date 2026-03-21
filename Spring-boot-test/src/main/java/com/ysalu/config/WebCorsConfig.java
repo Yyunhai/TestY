@@ -5,7 +5,7 @@ import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 /**
- * 配置前后端分离开发时的跨域访问策略。
+ * 配置前后端分离开发时的跨域策略。
  * 这里只对 `/api/**` 开放本地开发地址，并允许携带 Cookie 以支持 Session 登录。
  */
 @Configuration

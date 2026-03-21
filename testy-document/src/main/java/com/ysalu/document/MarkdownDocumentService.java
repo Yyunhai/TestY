@@ -1,9 +1,14 @@
 package com.ysalu.document;
 
-import com.ysalu.domain.MarkdownDocument;
-import com.ysalu.domain.UserAccount;
-import com.ysalu.repository.MarkdownDocumentRepository;
-import com.ysalu.repository.UserAccountRepository;
+import com.ysalu.domain.audit.OperationLog;
+import com.ysalu.domain.auth.UserAccount;
+import com.ysalu.domain.document.DocumentVersionSource;
+import com.ysalu.domain.document.MarkdownDocument;
+import com.ysalu.domain.document.MarkdownDocumentVersion;
+import com.ysalu.repository.auth.UserAccountRepository;
+import com.ysalu.repository.audit.OperationLogRepository;
+import com.ysalu.repository.document.MarkdownDocumentRepository;
+import com.ysalu.repository.document.MarkdownDocumentVersionRepository;
 import java.util.ArrayList;
 import java.util.List;
 import org.springframework.stereotype.Service;
@@ -11,25 +16,27 @@ import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Markdown 文档服务。
- * 负责用户文档的查询、创建、更新以及摘要组装。
  */
 @Service
 public class MarkdownDocumentService {
 
     private final MarkdownDocumentRepository markdownDocumentRepository;
+    private final MarkdownDocumentVersionRepository markdownDocumentVersionRepository;
     private final UserAccountRepository userAccountRepository;
+    private final OperationLogRepository operationLogRepository;
 
     public MarkdownDocumentService(
             MarkdownDocumentRepository markdownDocumentRepository,
-            UserAccountRepository userAccountRepository
+            MarkdownDocumentVersionRepository markdownDocumentVersionRepository,
+            UserAccountRepository userAccountRepository,
+            OperationLogRepository operationLogRepository
     ) {
         this.markdownDocumentRepository = markdownDocumentRepository;
+        this.markdownDocumentVersionRepository = markdownDocumentVersionRepository;
         this.userAccountRepository = userAccountRepository;
+        this.operationLogRepository = operationLogRepository;
     }
 
-    /**
-     * 查询某个用户的所有文档列表，按更新时间倒序返回。
-     */
     @Transactional(readOnly = true)
     public List<DocumentSummary> listDocuments(Long ownerId) {
         List<MarkdownDocument> documents = markdownDocumentRepository.findAllByOwner_IdOrderByUpdatedAtDesc(ownerId);
@@ -40,9 +47,6 @@ public class MarkdownDocumentService {
         return result;
     }
 
-    /**
-     * 查询某个用户的单篇文档详情。
-     */
     @Transactional(readOnly = true)
     public DocumentDetail getDocument(Long ownerId, Long documentId) {
         MarkdownDocument document = markdownDocumentRepository.findByIdAndOwner_Id(documentId, ownerId)
@@ -50,11 +54,8 @@ public class MarkdownDocumentService {
         return toDetail(document);
     }
 
-    /**
-     * 创建新文档，并校验所属用户和文档内容。
-     */
     @Transactional
-    public DocumentDetail createDocument(Long ownerId, String title, String content) {
+    public DocumentDetail createDocument(Long ownerId, String title, String content, DocumentVersionSource sourceType) {
         UserAccount owner = userAccountRepository.findById(ownerId)
                 .orElseThrow(() -> new DocumentException("User account does not exist."));
 
@@ -62,25 +63,105 @@ public class MarkdownDocumentService {
         document.setOwner(owner);
         document.setTitle(normalizeTitle(title));
         document.setContent(normalizeContent(content));
-        return toDetail(markdownDocumentRepository.save(document));
+        MarkdownDocument savedDocument = markdownDocumentRepository.save(document);
+        createVersion(savedDocument, sourceType);
+        recordOperationLog(
+                owner,
+                "DOCUMENT_CREATED",
+                savedDocument.getId(),
+                "Created markdown document.",
+                "title=" + savedDocument.getTitle() + ", mode=" + sourceType.name()
+        );
+        return toDetail(savedDocument);
     }
 
-    /**
-     * 更新指定文档。
-     * 文档查询条件带 ownerId，因此天然限制为“只能修改自己的文档”。
-     */
     @Transactional
-    public DocumentDetail updateDocument(Long ownerId, Long documentId, String title, String content) {
+    public DocumentDetail updateDocument(Long ownerId, Long documentId, String title, String content, DocumentVersionSource sourceType) {
         MarkdownDocument document = markdownDocumentRepository.findByIdAndOwner_Id(documentId, ownerId)
                 .orElseThrow(() -> new DocumentException("Document does not exist."));
-        document.setTitle(normalizeTitle(title));
-        document.setContent(normalizeContent(content));
-        return toDetail(markdownDocumentRepository.save(document));
+        String normalizedTitle = normalizeTitle(title);
+        String normalizedContent = normalizeContent(content);
+        if (normalizedTitle.equals(document.getTitle()) && normalizedContent.equals(document.getContent())) {
+            return toDetail(document);
+        }
+        document.setTitle(normalizedTitle);
+        document.setContent(normalizedContent);
+        MarkdownDocument savedDocument = markdownDocumentRepository.save(document);
+        createVersion(savedDocument, sourceType);
+        recordOperationLog(
+                savedDocument.getOwner(),
+                "DOCUMENT_UPDATED",
+                savedDocument.getId(),
+                "Updated markdown document.",
+                "title=" + savedDocument.getTitle() + ", mode=" + sourceType.name()
+        );
+        return toDetail(savedDocument);
     }
 
-    /**
-     * 规范化标题并校验长度。
-     */
+    @Transactional
+    public void deleteDocument(Long ownerId, Long documentId) {
+        MarkdownDocument document = markdownDocumentRepository.findByIdAndOwner_Id(documentId, ownerId)
+                .orElseThrow(() -> new DocumentException("Document does not exist."));
+        String title = document.getTitle();
+        Long targetId = document.getId();
+        UserAccount owner = document.getOwner();
+        markdownDocumentVersionRepository.deleteAllByDocument_Id(document.getId());
+        markdownDocumentRepository.delete(document);
+        recordOperationLog(owner, "DOCUMENT_DELETED", targetId, "Deleted markdown document.", "title=" + title);
+    }
+
+    @Transactional(readOnly = true)
+    public List<DocumentVersionView> listVersions(Long ownerId, Long documentId) {
+        MarkdownDocument document = markdownDocumentRepository.findByIdAndOwner_Id(documentId, ownerId)
+                .orElseThrow(() -> new DocumentException("Document does not exist."));
+        List<MarkdownDocumentVersion> versions =
+                markdownDocumentVersionRepository.findAllByDocument_IdOrderByVersionNumberDesc(document.getId());
+        List<DocumentVersionView> result = new ArrayList<DocumentVersionView>();
+        for (MarkdownDocumentVersion version : versions) {
+            result.add(new DocumentVersionView(
+                    version.getId(),
+                    version.getVersionNumber().intValue(),
+                    version.getTitle(),
+                    version.getSourceType().name(),
+                    version.getCreatedAt()
+            ));
+        }
+        return result;
+    }
+
+    @Transactional
+    public DocumentDetail restoreVersion(Long ownerId, Long documentId, Long versionId) {
+        MarkdownDocument document = markdownDocumentRepository.findByIdAndOwner_Id(documentId, ownerId)
+                .orElseThrow(() -> new DocumentException("Document does not exist."));
+        MarkdownDocumentVersion version = markdownDocumentVersionRepository.findByIdAndDocument_Id(versionId, document.getId())
+                .orElseThrow(() -> new DocumentException("Version does not exist."));
+        document.setTitle(version.getTitle());
+        document.setContent(version.getContent());
+        MarkdownDocument savedDocument = markdownDocumentRepository.save(document);
+        createVersion(savedDocument, DocumentVersionSource.RESTORE);
+        recordOperationLog(
+                savedDocument.getOwner(),
+                "DOCUMENT_RESTORED",
+                savedDocument.getId(),
+                "Restored markdown document version.",
+                "versionId=" + version.getId() + ", versionNumber=" + version.getVersionNumber()
+        );
+        return toDetail(savedDocument);
+    }
+
+    private void createVersion(MarkdownDocument document, DocumentVersionSource sourceType) {
+        int nextVersion = markdownDocumentVersionRepository.findTopByDocument_IdOrderByVersionNumberDesc(document.getId())
+                .map(existing -> existing.getVersionNumber().intValue() + 1)
+                .orElse(1);
+        MarkdownDocumentVersion version = new MarkdownDocumentVersion();
+        version.setDocument(document);
+        version.setVersionNumber(Integer.valueOf(nextVersion));
+        version.setTitle(document.getTitle());
+        version.setContent(document.getContent());
+        version.setSourceType(sourceType);
+        markdownDocumentVersionRepository.save(version);
+    }
+
     private String normalizeTitle(String title) {
         String value = title == null ? "" : title.trim();
         if (value.isEmpty()) {
@@ -92,9 +173,6 @@ public class MarkdownDocumentService {
         return value;
     }
 
-    /**
-     * 校验正文长度。
-     */
     private String normalizeContent(String content) {
         String value = content == null ? "" : content;
         if (value.length() > 100000) {
@@ -103,9 +181,6 @@ public class MarkdownDocumentService {
         return value;
     }
 
-    /**
-     * 将实体对象转换为摘要对象。
-     */
     private DocumentSummary toSummary(MarkdownDocument document) {
         return new DocumentSummary(
                 document.getId(),
@@ -116,9 +191,6 @@ public class MarkdownDocumentService {
         );
     }
 
-    /**
-     * 将实体对象转换为详情对象。
-     */
     private DocumentDetail toDetail(MarkdownDocument document) {
         return new DocumentDetail(
                 document.getId(),
@@ -129,17 +201,28 @@ public class MarkdownDocumentService {
         );
     }
 
-    /**
-     * 为文档列表生成正文摘要。
-     */
     private String buildExcerpt(String content) {
         if (content == null || content.trim().isEmpty()) {
-            return "空文档";
+            return "暂无内容";
         }
         String normalized = content.replace("\r", " ").replace("\n", " ").trim();
         if (normalized.length() <= 80) {
             return normalized;
         }
         return normalized.substring(0, 80) + "...";
+    }
+
+    private void recordOperationLog(UserAccount owner, String action, Long targetId, String message, String detail) {
+        OperationLog operationLog = new OperationLog();
+        operationLog.setOperatorUser(owner);
+        operationLog.setOperatorUsername(owner == null || owner.getUsername() == null ? "unknown" : owner.getUsername());
+        operationLog.setModuleCode("DOCS");
+        operationLog.setActionCode(action);
+        operationLog.setTargetType("DOCUMENT");
+        operationLog.setTargetId(targetId == null ? null : String.valueOf(targetId));
+        operationLog.setSuccess(true);
+        operationLog.setMessage(message);
+        operationLog.setDetail(detail);
+        operationLogRepository.save(operationLog);
     }
 }

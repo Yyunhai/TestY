@@ -1,20 +1,20 @@
 package com.ysalu.config;
 
-import com.ysalu.domain.AccountStatus;
-import com.ysalu.domain.RolePermission;
-import com.ysalu.domain.SystemPermission;
-import com.ysalu.domain.SystemRole;
-import com.ysalu.domain.UserAccount;
-import com.ysalu.domain.UserProfile;
-import com.ysalu.domain.UserRole;
-import com.ysalu.repository.RolePermissionRepository;
-import com.ysalu.repository.SystemPermissionRepository;
-import com.ysalu.repository.SystemRoleRepository;
-import com.ysalu.repository.UserAccountRepository;
-import com.ysalu.repository.UserProfileRepository;
-import com.ysalu.repository.UserRoleRepository;
-import com.ysalu.service.PermissionCodes;
-import com.ysalu.service.RoleCodes;
+import com.ysalu.domain.auth.AccountStatus;
+import com.ysalu.domain.auth.RolePermission;
+import com.ysalu.domain.auth.SystemPermission;
+import com.ysalu.domain.auth.SystemRole;
+import com.ysalu.domain.auth.UserAccount;
+import com.ysalu.domain.auth.UserProfile;
+import com.ysalu.domain.auth.UserRole;
+import com.ysalu.repository.auth.RolePermissionRepository;
+import com.ysalu.repository.auth.SystemPermissionRepository;
+import com.ysalu.repository.auth.SystemRoleRepository;
+import com.ysalu.repository.auth.UserAccountRepository;
+import com.ysalu.repository.auth.UserProfileRepository;
+import com.ysalu.repository.auth.UserRoleRepository;
+import com.ysalu.service.security.PermissionCodes;
+import com.ysalu.service.security.RoleCodes;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import org.springframework.beans.factory.annotation.Value;
@@ -25,8 +25,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * 系统安全数据初始化器。
- * 应用启动时自动准备权限、角色以及 root 管理员账号，确保系统首次启动即可登录和鉴权。
+ * 系统安全基础数据初始化器。
  */
 @Component
 public class SecurityDataInitializer implements ApplicationRunner {
@@ -66,9 +65,6 @@ public class SecurityDataInitializer implements ApplicationRunner {
         this.passwordEncoder = passwordEncoder;
     }
 
-    /**
-     * 初始化权限、角色及 root 管理员。
-     */
     @Override
     @Transactional
     public void run(ApplicationArguments args) {
@@ -78,7 +74,12 @@ public class SecurityDataInitializer implements ApplicationRunner {
         permissions.put(PermissionCodes.DOCS_READ, "Read own markdown documents");
         permissions.put(PermissionCodes.DOCS_WRITE, "Create and update own markdown documents");
         permissions.put(PermissionCodes.ADMIN_USERS_READ, "View user accounts");
+        permissions.put(PermissionCodes.ADMIN_USERS_WRITE, "Change user roles");
+        permissions.put(PermissionCodes.ADMIN_ROLES_READ, "View system roles");
+        permissions.put(PermissionCodes.ADMIN_ROLES_WRITE, "Create and update system roles");
+        permissions.put(PermissionCodes.ADMIN_PERMISSIONS_READ, "View system permissions");
         permissions.put(PermissionCodes.ADMIN_LOGINS_READ, "View login audits");
+        permissions.put(PermissionCodes.ADMIN_OPERATION_LOGS_READ, "View operation logs");
         permissions.put(PermissionCodes.SYSTEM_MANAGE, "Manage system settings");
 
         for (Map.Entry<String, String> entry : permissions.entrySet()) {
@@ -105,9 +106,6 @@ public class SecurityDataInitializer implements ApplicationRunner {
         }
     }
 
-    /**
-     * 确保权限编码存在，不存在时自动补齐。
-     */
     private SystemPermission ensurePermission(String code, String description) {
         return systemPermissionRepository.findByCode(code).orElseGet(() -> {
             SystemPermission permission = new SystemPermission();
@@ -118,9 +116,6 @@ public class SecurityDataInitializer implements ApplicationRunner {
         });
     }
 
-    /**
-     * 确保角色存在，不存在时自动创建为内置角色。
-     */
     private SystemRole ensureRole(String code, String name, String description) {
         return systemRoleRepository.findByCode(code).orElseGet(() -> {
             SystemRole role = new SystemRole();
@@ -132,9 +127,6 @@ public class SecurityDataInitializer implements ApplicationRunner {
         });
     }
 
-    /**
-     * 为角色绑定权限，避免重复插入。
-     */
     private void ensureRolePermission(SystemRole role, String permissionCode) {
         SystemPermission permission = systemPermissionRepository.findByCode(permissionCode)
                 .orElseThrow(() -> new IllegalStateException("Permission missing: " + permissionCode));
@@ -147,9 +139,6 @@ public class SecurityDataInitializer implements ApplicationRunner {
         rolePermissionRepository.save(rolePermission);
     }
 
-    /**
-     * 创建默认 root 管理员账号及其资料信息。
-     */
     private UserAccount createRootAccount() {
         UserAccount userAccount = new UserAccount();
         userAccount.setUsername(rootUsername);

@@ -10,7 +10,7 @@ import javax.validation.constraints.Size;
 public class SaveDocumentRequest {
 
     /**
-     * 文档标题，不能为空，最长 120 个字符。
+     * 文档标题，不可为空，最长 120 个字符。
      */
     @NotBlank(message = "Document title is required.")
     @Size(max = 120, message = "Document title must be at most 120 characters.")

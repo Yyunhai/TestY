@@ -1,6 +1,6 @@
 package com.ysalu.web.auth;
 
-import com.ysalu.service.AuthenticatedUser;
+import com.ysalu.service.auth.AuthenticatedUser;
 import java.io.Serializable;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -9,7 +9,7 @@ import java.util.List;
 
 /**
  * 会话中保存的用户快照。
- * 该对象只保留鉴权和界面展示所需字段，避免每次请求都重新拼装完整登录态。
+ * 该对象只保留鉴权和页面展示所需字段，避免每次请求都重新组装完整登录态。
  */
 public class SessionUser implements Serializable {
 

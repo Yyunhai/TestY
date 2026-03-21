@@ -1,5 +1,6 @@
 import { createApp } from "vue";
+import "highlight.js/styles/github.css";
 import App from "./App.vue";
 
-// 挂载前端根组件，认证页面、工作台和 Markdown 编辑页都从这里启动。
+// 挂载前端根组件，统一承载登录页、文档页与管理员后台。
 createApp(App).mount("#app");

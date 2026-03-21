@@ -1,43 +1,65 @@
 # TestY 项目说明
 
-TestY 是一个基于 Spring Boot 多模块后端和 Vue 3 前端的示例系统。项目当前已经实现了多表注册登录、基于角色和权限的访问控制、登录审计、root 管理员、项目概览页，以及登录后的 Markdown 文档编写与保存功能。
+TestY 是一个基于 Spring Boot 多模块后端和 Vue 3 前端的示例系统，当前已经实现认证授权、管理员能力、Markdown 文档管理，以及登录审计和操作日志能力。
 
 ## 项目目标
 
-这个项目的重点不是单纯展示页面，而是提供一套相对完整的用户认证与内容编写样例，便于继续扩展成后台管理系统、知识库系统或内部协作工具。
+这个项目的重点不是单页展示，而是提供一套可以继续扩展的业务底座，适合作为以下类型系统的起点：
+
+- 后台管理系统
+- 内部协作平台
+- 知识库或文档系统
+- 带权限控制的内容管理系统
 
 ## 功能概览
 
-- 用户注册会同时写入账户表、资料表和用户角色关系表。
+- 用户注册会同时写入账户表、资料表和默认角色关系。
 - 用户登录支持用户名或邮箱，并记录登录 IP、时间、User-Agent、角色快照和权限快照。
 - 系统内置 `USER` 和 `ROOT` 两个角色。
-- root 管理员拥有所有权限，可以查看用户列表和最近登录审计。
-- 普通登录用户可以查看项目概览，并编写、保存、修改自己的 Markdown 文档。
-- 前端提供登录、注册、重置密码、工作台、文档列表、文档编辑和实时预览页面。
+- 管理员可以查看用户、角色、权限、登录审计和操作日志。
+- 普通用户可以查看项目概览，并创建、编辑、删除、恢复自己的 Markdown 文档。
+- 系统会对关键写操作记录操作日志，例如注册、重置密码、退出登录、文档创建/更新/删除/恢复，以及管理员修改角色和用户状态。
 
 ## 模块结构
 
 - `testy-repository`
-  数据实体和 Spring Data JPA 仓储接口。
+  持久化层，包含 JPA 实体和仓储接口。
 - `testy-service`
-  认证、权限、管理员能力、项目概览等核心业务服务。
+  核心业务层，包含认证、权限、管理员、日志等服务。
 - `testy-document`
   Markdown 文档相关服务和只读视图对象。
 - `Spring-boot-test`
-  启动模块，包含控制器、配置、异常处理和测试。
+  启动模块，包含控制器、配置、异常处理和集成测试。
 - `web`
   Vue 3 前端项目。
 
 ## 认证与权限设计
 
-系统使用基于 Session 的登录态，不使用 JWT。登录成功后，后端会把当前用户快照写入 HttpSession，并由拦截器统一保护 `/api/**` 路径下的接口。
+系统使用基于 Session 的登录态，不使用 JWT。登录成功后，后端会把当前用户快照写入 `HttpSession`，并通过拦截器统一保护 `/api/**` 路径下的接口。
 
-当前核心表如下：
+当前内置权限包括：
+
+- `overview:read`
+- `profile:read`
+- `docs:read`
+- `docs:write`
+- `admin:users:read`
+- `admin:users:write`
+- `admin:roles:read`
+- `admin:roles:write`
+- `admin:permissions:read`
+- `admin:logins:read`
+- `admin:operation-logs:read`
+- `system:manage`
+
+## 数据表说明
+
+核心表如下：
 
 - `user_account`
   账户主表，保存用户名、邮箱、密码摘要、状态和最近登录信息。
 - `user_profile`
-  用户资料表，保存展示名和手机号。
+  用户资料表，保存显示名和手机号。
 - `system_role`
   系统角色表。
 - `system_permission`
@@ -48,18 +70,45 @@ TestY 是一个基于 Spring Boot 多模块后端和 Vue 3 前端的示例系统
   角色和权限关系表。
 - `login_audit`
   登录审计表。
+- `operation_log`
+  操作日志表。
 - `markdown_document`
   Markdown 文档表。
+- `markdown_document_version`
+  Markdown 文档版本表。
+
+## 日志功能
+
+项目当前包含两类日志：
+
+- 登录审计
+  用于记录每次登录尝试，包含登录主体、IP、User-Agent、成功状态、角色快照和权限快照。
+- 操作日志
+  用于记录关键业务操作，包含操作者、模块、动作、目标对象、结果、说明和发生时间。
+
+当前会记录的典型操作包括：
+
+- 用户注册
+- 密码重置
+- 退出登录
+- 文档创建
+- 文档更新
+- 文档删除
+- 文档版本恢复
+- 创建角色
+- 更新角色
+- 更新用户角色
+- 更新用户状态
 
 ## 默认管理员
 
-系统启动时会自动初始化 root 管理员账号，默认配置如下：
+系统启动时会自动初始化 root 管理员账户，默认配置如下：
 
 - 用户名：`rootadmin`
 - 邮箱：`root@testy.local`
 - 密码：`Root@123456`
 
-你可以通过环境变量覆盖这些值：
+可以通过环境变量覆盖：
 
 - `TESTY_ROOT_USERNAME`
 - `TESTY_ROOT_EMAIL`
@@ -74,11 +123,11 @@ TestY 是一个基于 Spring Boot 多模块后端和 Vue 3 前端的示例系统
 
 ## 后端运行方式
 
-先准备一个可用的 MySQL 数据库。默认配置会连接本机的 `testy_auth` 库，如果数据库不存在会自动创建。
+默认配置会连接本机的 `testy_auth` 数据库，如果数据库不存在会自动创建。
 
-后端配置文件在：
+后端配置文件位置：
 
-- [application.properties](D:/Y/Desktop/TestY/Spring-boot-test/src/main/resources/application.properties)
+- `Spring-boot-test/src/main/resources/application.properties`
 
 在项目根目录执行：
 
@@ -90,9 +139,9 @@ mvn -pl Spring-boot-test -am spring-boot:run
 
 ## 前端运行方式
 
-前端目录在：
+前端目录：
 
-- [web](D:/Y/Desktop/TestY/web)
+- `web`
 
 进入前端目录后执行：
 
@@ -105,7 +154,7 @@ npm run serve
 
 ## 常用接口
 
-认证相关接口：
+认证接口：
 
 - `POST /api/auth/register`
 - `POST /api/auth/login`
@@ -120,7 +169,15 @@ npm run serve
 管理员接口：
 
 - `GET /api/admin/users`
+- `PUT /api/admin/users/{userId}/roles`
+- `PUT /api/admin/users/{userId}/status`
+- `GET /api/admin/roles`
+- `POST /api/admin/roles`
+- `PUT /api/admin/roles/{roleId}`
+- `GET /api/admin/permissions`
 - `GET /api/admin/login-audits`
+- `GET /api/admin/login-audits/alerts`
+- `GET /api/admin/operation-logs`
 
 Markdown 文档接口：
 
@@ -128,10 +185,9 @@ Markdown 文档接口：
 - `GET /api/docs/{id}`
 - `POST /api/docs`
 - `PUT /api/docs/{id}`
-
-## 前端页面说明
-
-登录成功后，用户先进入工作台。工作台负责展示账户信息、项目概览和文档入口。点击“编写文档”后进入独立的文档页，在该页面中可以查看自己的文档列表、创建新文档、编辑标题和正文，并实时预览 Markdown 内容。
+- `DELETE /api/docs/{id}`
+- `GET /api/docs/{id}/versions`
+- `POST /api/docs/{id}/versions/{versionId}/restore`
 
 ## 测试与构建
 
@@ -150,7 +206,7 @@ npm run build
 
 ## Docker 运行
 
-项目已经提供 Dockerfile 和 `docker-compose.yml`，可以直接进行一体化构建和启动：
+项目已经提供 `Dockerfile` 和 `docker-compose.yml`，可以直接进行一体化构建和启动：
 
 ```bash
 docker compose up --build
@@ -163,8 +219,7 @@ docker compose up --build
 
 ## 后续扩展建议
 
-- 增加管理员页面，而不仅是管理员接口。
-- 为 Markdown 编辑器增加自动保存、删除文档和版本历史。
-- 为角色和权限增加后台维护能力。
-- 引入更完整的 Markdown 解析库和样式主题。
-- 为登录审计增加分页、筛选和失败告警能力。
+- 为操作日志增加时间范围、目标类型和结果状态筛选。
+- 为登录审计增加失败告警策略和通知能力。
+- 为文档模块增加标签、归档和全文检索。
+- 增加管理员前端页面，而不只保留管理员接口。

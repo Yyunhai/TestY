@@ -6,7 +6,7 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 /**
  * 注册基于 Session 的接口鉴权拦截器。
- * 除登录、注册、重置密码等公开接口外，其余 `/api/**` 都需要先登录。
+ * 除登录、注册、重置密码等公开接口外，其余 `/api/**` 请求都必须先登录。
  */
 @Configuration
 public class WebAuthConfig implements WebMvcConfigurer {

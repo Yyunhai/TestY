@@ -18,7 +18,7 @@ public class ResetPasswordRequest {
     private String username;
 
     /**
-     * 注册邮箱。
+     * 邮箱。
      */
     @NotBlank(message = "Email is required.")
     @Email(message = "Email format is invalid.")

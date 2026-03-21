@@ -6,7 +6,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 /**
- * 提供认证模块所需的安全基础 Bean。
+ * 提供认证模块所需的基础安全 Bean。
  */
 @Configuration
 public class SecuritySupportConfig {
