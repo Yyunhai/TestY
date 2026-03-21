@@ -10,6 +10,7 @@ replay_pid*
 .mvn/timing.properties
 
 ### IntelliJ IDEA ###
+.idea/
 .idea/modules.xml
 .idea/jarRepositories.xml
 .idea/compiler.xml
@@ -73,3 +74,4 @@ Spring-boot-test/src/main/resources/static/fonts/
 .DS_Store
 Thumbs.db
 Desktop.ini
+
