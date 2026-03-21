@@ -3,11 +3,13 @@ package com.ysalu.service;
 import com.ysalu.repository.ModuleCatalogRepository;
 import org.springframework.stereotype.Service;
 
-@Service
 /**
- * 组装首页概览数据，衔接控制层和仓储层。
+ * 组装首页概览数据。
+ * 该服务连接控制层与模块目录仓储，统一生成项目运行信息。
  */
+@Service
 public class ProjectOverviewService {
+
     private final ModuleCatalogRepository moduleCatalogRepository;
 
     public ProjectOverviewService(ModuleCatalogRepository moduleCatalogRepository) {
@@ -15,10 +17,9 @@ public class ProjectOverviewService {
     }
 
     /**
-     * 收集当前应用的名称、运行环境和模块信息。
+     * 收集应用名称、Java 版本、欢迎语和模块列表。
      */
     public ProjectOverview buildOverview() {
-        // 在服务层集中组装首页信息，避免控制层直接拼接多个数据来源。
         return new ProjectOverview(
                 "TestY",
                 System.getProperty("java.version"),

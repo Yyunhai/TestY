@@ -3,6 +3,8 @@ package com.ysalu.domain;
 import java.time.LocalDateTime;
 import javax.persistence.Column;
 import javax.persistence.Entity;
+import javax.persistence.EnumType;
+import javax.persistence.Enumerated;
 import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
@@ -10,25 +12,48 @@ import javax.persistence.PrePersist;
 import javax.persistence.PreUpdate;
 import javax.persistence.Table;
 
+/**
+ * 用户账户实体。
+ * 保存登录身份、密码摘要、账户状态以及最近登录信息。
+ */
 @Entity
 @Table(name = "user_account")
-/**
- * 用户账号实体，映射登录注册相关的基础数据。
- */
 public class UserAccount {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    /**
+     * 登录用户名。
+     */
     @Column(nullable = false, unique = true, length = 64)
     private String username;
 
+    /**
+     * 登录邮箱。
+     */
     @Column(nullable = false, unique = true, length = 128)
     private String email;
 
+    /**
+     * BCrypt 加密后的密码摘要。
+     */
     @Column(name = "password_hash", nullable = false, length = 100)
     private String passwordHash;
+
+    /**
+     * 当前账户状态。
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "account_status", nullable = false, length = 24)
+    private AccountStatus accountStatus;
+
+    @Column(name = "last_login_at")
+    private LocalDateTime lastLoginAt;
+
+    @Column(name = "last_login_ip", length = 64)
+    private String lastLoginIp;
 
     @Column(nullable = false)
     private LocalDateTime createdAt;
@@ -68,6 +93,30 @@ public class UserAccount {
         this.passwordHash = passwordHash;
     }
 
+    public AccountStatus getAccountStatus() {
+        return accountStatus;
+    }
+
+    public void setAccountStatus(AccountStatus accountStatus) {
+        this.accountStatus = accountStatus;
+    }
+
+    public LocalDateTime getLastLoginAt() {
+        return lastLoginAt;
+    }
+
+    public void setLastLoginAt(LocalDateTime lastLoginAt) {
+        this.lastLoginAt = lastLoginAt;
+    }
+
+    public String getLastLoginIp() {
+        return lastLoginIp;
+    }
+
+    public void setLastLoginIp(String lastLoginIp) {
+        this.lastLoginIp = lastLoginIp;
+    }
+
     public LocalDateTime getCreatedAt() {
         return createdAt;
     }
@@ -77,19 +126,16 @@ public class UserAccount {
     }
 
     @PrePersist
-    /**
-     * 首次入库时同时初始化创建时间和更新时间。
-     */
     public void onCreate() {
         LocalDateTime now = LocalDateTime.now();
         createdAt = now;
         updatedAt = now;
+        if (accountStatus == null) {
+            accountStatus = AccountStatus.ACTIVE;
+        }
     }
 
     @PreUpdate
-    /**
-     * 每次更新记录时刷新更新时间。
-     */
     public void onUpdate() {
         updatedAt = LocalDateTime.now();
     }

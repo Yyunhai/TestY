@@ -11,6 +11,10 @@ import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.HandlerInterceptor;
 
+/**
+ * 基于 HttpSession 的请求拦截器。
+ * 进入控制器之前先检查会话中是否存在已认证用户，不存在则直接返回 401 JSON。
+ */
 @Component
 public class SessionAuthInterceptor implements HandlerInterceptor {
 
@@ -20,6 +24,10 @@ public class SessionAuthInterceptor implements HandlerInterceptor {
         this.objectMapper = objectMapper;
     }
 
+    /**
+     * 预处理 API 请求。
+     * `OPTIONS` 预检请求直接放行，其余请求必须带有合法的会话用户。
+     */
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws IOException {
         if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {

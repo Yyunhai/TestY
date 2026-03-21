@@ -20,6 +20,11 @@
             <artifactId>testy-service</artifactId>
             <version>${project.version}</version>
         </dependency>
+        <dependency>
+            <groupId>com.ysalu</groupId>
+            <artifactId>testy-document</artifactId>
+            <version>${project.version}</version>
+        </dependency>
 
         <dependency>
             <groupId>org.springframework.boot</groupId>

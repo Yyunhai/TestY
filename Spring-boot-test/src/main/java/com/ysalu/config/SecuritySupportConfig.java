@@ -5,16 +5,16 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
-@Configuration
 /**
- * 提供认证模块需要的安全相关基础 Bean。
+ * 提供认证模块所需的安全基础 Bean。
  */
+@Configuration
 public class SecuritySupportConfig {
 
-    @Bean
     /**
      * 使用 BCrypt 对密码进行单向加密存储。
      */
+    @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
     }

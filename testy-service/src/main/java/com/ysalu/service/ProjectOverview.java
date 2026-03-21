@@ -3,9 +3,11 @@ package com.ysalu.service;
 import java.util.List;
 
 /**
- * 项目概览响应对象，用于向前端展示应用基础信息和模块列表。
+ * 项目概览响应对象。
+ * 用于向前端展示应用基础信息和模块列表。
  */
 public class ProjectOverview {
+
     private final String applicationName;
     private final String javaVersion;
     private final String message;

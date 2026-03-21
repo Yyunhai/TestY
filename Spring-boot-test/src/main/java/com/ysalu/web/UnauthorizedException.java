@@ -1,7 +1,8 @@
 package com.ysalu.web;
 
 /**
- * Thrown when a protected API is accessed without a valid authenticated session.
+ * 未登录异常。
+ * 当受保护接口在没有有效会话的情况下被访问时抛出。
  */
 public class UnauthorizedException extends RuntimeException {
 

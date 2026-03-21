@@ -19,10 +19,12 @@ WORKDIR /workspace
 COPY pom.xml ./pom.xml
 COPY testy-repository/pom.xml ./testy-repository/pom.xml
 COPY testy-service/pom.xml ./testy-service/pom.xml
+COPY testy-document/pom.xml ./testy-document/pom.xml
 COPY Spring-boot-test/pom.xml ./Spring-boot-test/pom.xml
 
 COPY testy-repository/src ./testy-repository/src
 COPY testy-service/src ./testy-service/src
+COPY testy-document/src ./testy-document/src
 COPY Spring-boot-test/src ./Spring-boot-test/src
 
 COPY --from=frontend-builder /workspace/Spring-boot-test/src/main/resources/static ./Spring-boot-test/src/main/resources/static

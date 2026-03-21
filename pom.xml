@@ -22,6 +22,7 @@
     <modules>
         <module>testy-repository</module>
         <module>testy-service</module>
+        <module>testy-document</module>
         <module>Spring-boot-test</module>
     </modules>
 

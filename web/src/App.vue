@@ -1,245 +1,201 @@
 <template>
   <main class="page" :class="themeClass">
-    <section v-if="!currentUser" class="auth-layout">
-      <aside class="brand-panel">
-        <div class="brand-top">
-          <p class="eyebrow">TestY</p>
-          <button class="theme-button" type="button" @click="toggleTheme">
-            {{ isDarkMode ? "浅色模式" : "暗色模式" }}
-          </button>
-        </div>
-        <h1>简洁一点，更像真正的登录页。</h1>
-        <p class="lead">
-          这里只保留账号操作本身。注册、登录、找回密码都集中在一个区域里，不再堆叠多余说明。
-        </p>
+    <section v-if="!currentUser" class="auth">
+      <section class="panel">
+        <p class="eyebrow">TestY</p>
+        <h1>登录后进入工作台，再进入独立文档页写 Markdown。</h1>
+        <p class="muted">工作台只展示账户和项目概览，文档页单独负责列表、编辑和实时预览。</p>
+      </section>
 
-        <div class="brand-footer">
-          <span class="mini-chip">Vue</span>
-          <span class="mini-chip">Spring Boot</span>
-          <span class="mini-chip">MySQL</span>
-        </div>
-      </aside>
-
-      <section class="auth-card fade-up">
-        <div class="auth-head">
+      <section class="panel">
+        <div class="header-row">
           <div>
-            <p class="section-tag">账号中心</p>
+            <p class="eyebrow">账户中心</p>
             <h2>{{ authTitle }}</h2>
           </div>
-          <span class="status-badge">安全连接</span>
+          <button class="ghost" type="button" @click="toggleTheme">{{ isDarkMode ? "浅色模式" : "深色模式" }}</button>
         </div>
 
-        <div class="tab-row">
-          <button
-            v-for="item in tabs"
-            :key="item.key"
-            type="button"
-            class="tab-button"
-            :class="{ active: activeTab === item.key }"
-            @click="switchTab(item.key)"
-          >
+        <div class="tabs">
+          <button v-for="item in tabs" :key="item.key" class="tab" :class="{ active: activeTab === item.key }" @click="switchTab(item.key)">
             {{ item.label }}
           </button>
         </div>
 
-        <p v-if="message.text" class="message-bar" :class="message.type">
-          {{ message.text }}
-        </p>
+        <p v-if="message.text" class="message" :class="message.type">{{ message.text }}</p>
 
-        <form v-if="activeTab === 'login'" class="form-grid" @submit.prevent="submitLogin">
-          <label>
-            <span>用户名或邮箱</span>
-            <input
-              v-model.trim="loginForm.usernameOrEmail"
-              type="text"
-              placeholder="请输入用户名或邮箱"
-            />
-          </label>
-          <label>
-            <span>密码</span>
-            <input
-              v-model="loginForm.password"
-              type="password"
-              placeholder="请输入密码"
-            />
-          </label>
-          <button class="primary-button" type="submit" :disabled="busy">
-            {{ busy ? "正在登录..." : "登录" }}
-          </button>
+        <form v-if="activeTab === 'login'" class="form" @submit.prevent="submitLogin">
+          <input v-model.trim="loginForm.usernameOrEmail" type="text" placeholder="用户名或邮箱" />
+          <input v-model="loginForm.password" type="password" placeholder="密码" />
+          <button class="primary" type="submit" :disabled="busy">{{ busy ? "登录中..." : "登录" }}</button>
         </form>
 
-        <form v-else-if="activeTab === 'register'" class="form-grid" @submit.prevent="submitRegister">
-          <label>
-            <span>用户名</span>
-            <input
-              v-model.trim="registerForm.username"
-              type="text"
-              minlength="6"
-              placeholder="不少于 6 位"
-            />
-          </label>
-          <label>
-            <span>邮箱</span>
-            <input
-              v-model.trim="registerForm.email"
-              type="email"
-              placeholder="name@example.com"
-            />
-          </label>
-          <label>
-            <span>密码</span>
-            <input
-              v-model="registerForm.password"
-              type="password"
-              minlength="6"
-              placeholder="不少于 6 位"
-            />
-          </label>
-          <button class="primary-button" type="submit" :disabled="busy">
-            {{ busy ? "正在提交..." : "注册账号" }}
-          </button>
+        <form v-else-if="activeTab === 'register'" class="form" @submit.prevent="submitRegister">
+          <input v-model.trim="registerForm.username" type="text" placeholder="用户名，不少于 6 位" />
+          <input v-model.trim="registerForm.email" type="email" placeholder="邮箱" />
+          <input v-model.trim="registerForm.displayName" type="text" placeholder="显示名" />
+          <input v-model.trim="registerForm.phoneNumber" type="text" placeholder="手机号（可选）" />
+          <input v-model="registerForm.password" type="password" placeholder="密码，不少于 6 位" />
+          <button class="primary" type="submit" :disabled="busy">{{ busy ? "提交中..." : "注册账户" }}</button>
         </form>
 
-        <form v-else class="form-grid" @submit.prevent="submitReset">
-          <label>
-            <span>用户名</span>
-            <input
-              v-model.trim="resetForm.username"
-              type="text"
-              minlength="6"
-              placeholder="请输入用户名"
-            />
-          </label>
-          <label>
-            <span>邮箱</span>
-            <input
-              v-model.trim="resetForm.email"
-              type="email"
-              placeholder="请输入注册邮箱"
-            />
-          </label>
-          <label>
-            <span>新密码</span>
-            <input
-              v-model="resetForm.newPassword"
-              type="password"
-              minlength="6"
-              placeholder="请输入新密码"
-            />
-          </label>
-          <button class="primary-button" type="submit" :disabled="busy">
-            {{ busy ? "正在提交..." : "重置密码" }}
-          </button>
+        <form v-else class="form" @submit.prevent="submitReset">
+          <input v-model.trim="resetForm.username" type="text" placeholder="用户名" />
+          <input v-model.trim="resetForm.email" type="email" placeholder="注册邮箱" />
+          <input v-model="resetForm.newPassword" type="password" placeholder="新密码" />
+          <button class="primary" type="submit" :disabled="busy">{{ busy ? "提交中..." : "重置密码" }}</button>
         </form>
-
-        <p class="hint-text">
-          用户名与密码长度均不少于 6 位，邮箱用于找回密码。
-        </p>
       </section>
     </section>
 
-    <section v-else class="dashboard fade-up">
-      <header class="dashboard-head">
-        <div>
-          <p class="eyebrow">Workspace</p>
-          <h1>欢迎回来，{{ currentUser.username }}</h1>
-          <p class="lead small">
-            当前页面只保留登录后的核心信息，方便继续开发和调试。
-          </p>
+    <section v-else-if="currentPage === 'dashboard'" class="workspace">
+      <section class="panel">
+        <div class="header-row">
+          <div>
+            <p class="eyebrow">Workspace</p>
+            <h1>{{ currentUser.displayName || currentUser.username }} 的工作台</h1>
+            <p class="muted">角色：{{ currentUser.roles.join(" / ") }}，最近登录 IP：{{ currentUser.lastLoginIp || "暂无" }}</p>
+          </div>
+          <div class="actions">
+            <button class="ghost" type="button" @click="toggleTheme">{{ isDarkMode ? "浅色模式" : "深色模式" }}</button>
+            <button class="ghost" type="button" @click="refreshWorkspace" :disabled="workspaceLoading">{{ workspaceLoading ? "刷新中..." : "刷新" }}</button>
+            <button class="danger" type="button" @click="logout">退出</button>
+          </div>
         </div>
-
-        <div class="head-actions">
-          <button class="theme-button" type="button" @click="toggleTheme">
-            {{ isDarkMode ? "浅色模式" : "暗色模式" }}
-          </button>
-          <button class="secondary-button" type="button" @click="loadOverview" :disabled="overviewLoading">
-            {{ overviewLoading ? "刷新中..." : "刷新概览" }}
-          </button>
-          <button class="danger-button" type="button" @click="logout">退出登录</button>
-        </div>
-      </header>
+      </section>
 
       <section class="dashboard-grid">
-        <article class="panel account-panel">
-          <div class="panel-head">
+        <section class="panel">
+          <p class="eyebrow">账户</p>
+          <div class="metric"><span>用户名</span><strong>{{ currentUser.username }}</strong></div>
+          <div class="metric"><span>邮箱</span><strong>{{ currentUser.email }}</strong></div>
+          <div class="chips">
+            <span v-for="permission in currentUser.permissions" :key="permission" class="chip">{{ permission }}</span>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="header-row compact">
             <div>
-              <p class="section-tag">当前账号</p>
-              <h2>登录信息</h2>
-            </div>
-            <span class="online-mark">已登录</span>
-          </div>
-
-          <div class="account-item">
-            <span>用户名</span>
-            <strong>{{ currentUser.username }}</strong>
-          </div>
-
-          <div class="account-item">
-            <span>邮箱</span>
-            <strong>{{ currentUser.email }}</strong>
-          </div>
-        </article>
-
-        <article class="panel overview-panel">
-          <div class="panel-head">
-            <div>
-              <p class="section-tag">项目概览</p>
+              <p class="eyebrow">项目概览</p>
               <h2>运行状态</h2>
             </div>
+            <button class="ghost small" type="button" @click="loadOverview" :disabled="overviewLoading">{{ overviewLoading ? "加载中..." : "刷新概览" }}</button>
+          </div>
+          <p v-if="overviewError" class="message error">{{ overviewError }}</p>
+          <div v-else class="form">
+            <div class="metric"><span>应用名称</span><strong>{{ overview.applicationName || "暂无" }}</strong></div>
+            <div class="metric"><span>Java 版本</span><strong>{{ overview.javaVersion || "暂无" }}</strong></div>
+            <p class="muted">{{ overview.message || "暂无" }}</p>
+            <div class="chips">
+              <span v-for="moduleName in overview.modules" :key="moduleName" class="chip">{{ moduleName }}</span>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel docs-entry">
+          <p class="eyebrow">Markdown 文档</p>
+          <h2>进入文档页</h2>
+          <p class="muted">当前共有 {{ documents.length }} 篇文档。进入后可以新建草稿、继续编辑和保存。</p>
+          <div class="doc-summary-list">
+            <div v-for="item in recentDocuments" :key="item.id" class="doc-summary">
+              <strong>{{ item.title }}</strong>
+            </div>
+            <div v-if="!recentDocuments.length" class="empty">还没有文档，点击下方按钮开始。</div>
+          </div>
+          <button class="primary full" type="button" @click="openDocsPage(false)">编写文档</button>
+        </section>
+      </section>
+    </section>
+
+    <section v-else class="workspace">
+      <section class="panel">
+        <div class="header-row">
+          <div>
+            <p class="eyebrow">Markdown Workspace</p>
+            <h1>文档编写页</h1>
+            <p class="muted">单独的写作页面，左侧是文档列表，右侧是编辑器和预览。</p>
+          </div>
+          <div class="actions">
+            <button class="ghost" type="button" @click="goToPage('dashboard')">返回工作台</button>
+            <button class="ghost" type="button" @click="toggleTheme">{{ isDarkMode ? "浅色模式" : "深色模式" }}</button>
+            <button class="danger" type="button" @click="logout">退出</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="docs-layout">
+        <aside class="panel">
+          <div class="header-row compact">
+            <div>
+              <p class="eyebrow">我的文档</p>
+              <h2>文档列表</h2>
+            </div>
+            <button class="primary small" type="button" @click="startDraft">新建</button>
           </div>
 
-          <p v-if="overviewError" class="message-bar error">
-            {{ overviewError }}
-          </p>
+          <p v-if="documentMessage.text" class="message" :class="documentMessage.type">{{ documentMessage.text }}</p>
 
-          <template v-else>
-            <div class="metric-grid">
-              <article class="metric-card">
-                <span>应用名称</span>
-                <strong>{{ overview.applicationName || "加载中" }}</strong>
-              </article>
-              <article class="metric-card">
-                <span>Java 版本</span>
-                <strong>{{ overview.javaVersion || "加载中" }}</strong>
-              </article>
-              <article class="metric-card metric-wide">
-                <span>运行说明</span>
-                <strong>{{ overview.message || "正在获取后端状态..." }}</strong>
-              </article>
-            </div>
+          <div class="doc-list">
+            <button v-for="item in documents" :key="item.id" class="doc-card" :class="{ active: selectedDocumentId === item.id }" @click="selectDocument(item.id)">
+              <strong>{{ item.title }}</strong>
+            </button>
+            <div v-if="!documents.length" class="empty">还没有文档，点击“新建”开始。</div>
+          </div>
+        </aside>
 
-            <div class="module-box">
-              <div class="module-head">
-                <span class="section-tag module-tag">模块列表</span>
-                <span class="module-count">{{ overview.modules.length }} 个模块</span>
-              </div>
-              <div class="module-list">
-                <span v-for="moduleName in overview.modules" :key="moduleName" class="module-chip">
-                  {{ moduleName }}
-                </span>
-              </div>
+        <section class="panel">
+          <div class="header-row compact">
+            <div>
+              <p class="eyebrow">编辑器</p>
+              <h2>{{ selectedDocumentId ? "编辑文档" : "新建文档" }}</h2>
             </div>
-          </template>
-        </article>
+            <div class="actions">
+              <span v-if="draftNotice" class="badge">{{ draftNotice }}</span>
+              <button class="primary small" type="button" @click="saveDocument" :disabled="documentBusy">{{ documentBusy ? "保存中..." : "保存文档" }}</button>
+            </div>
+          </div>
+
+          <div class="editor-grid">
+            <section class="form">
+              <input ref="titleInput" v-model.trim="documentForm.title" type="text" maxlength="120" placeholder="文档标题" />
+              <textarea v-model="documentForm.content" placeholder="# 开始写作&#10;&#10;在这里输入 Markdown 内容"></textarea>
+            </section>
+
+            <section>
+              <div class="preview-head">
+                <span>实时预览</span>
+                <small>{{ documentForm.content.length }} 个字符</small>
+              </div>
+              <div class="preview" v-html="renderedMarkdown"></div>
+            </section>
+          </div>
+        </section>
       </section>
     </section>
   </main>
 </template>
 
 <script>
-// 本地缓存键：一个保存登录后的最小用户信息，一个保存主题偏好。
-const SESSION_KEY = "testy-user";
+import { nextTick } from "vue";
+
+// 本地缓存的主题键，用于在刷新页面后恢复明暗模式。
+
 const THEME_KEY = "testy-theme";
 
+// 工作台概览的默认空状态，避免页面初次渲染时出现空引用。
+
 function emptyOverview() {
-  // 在接口未返回、请求失败或退出登录时，统一使用空概览重置右侧展示区。
-  return {
-    applicationName: "",
-    javaVersion: "",
-    message: "",
-    modules: []
-  };
+  return { applicationName: "", javaVersion: "", message: "", modules: [] };
 }
+
+// 新建文档时使用的默认草稿内容。
+
+function emptyDocumentForm() {
+  return { title: "未命名文档", content: "# 新文档\n\n在这里开始写 Markdown。" };
+}
+
+// 将 401 场景显式标记出来，便于统一走登录态失效流程。
 
 function createAuthError(message) {
   const error = new Error(message || "Authentication required.");
@@ -247,51 +203,192 @@ function createAuthError(message) {
   return error;
 }
 
+// 预览渲染前先做 HTML 转义，避免用户输入被当作原始 HTML 注入页面。
+
+function escapeHtml(value) {
+  return (value || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+// 只允许安全链接协议进入预览区域。
+
+function sanitizeUrl(url) {
+  const value = (url || "").trim();
+  return /^(https?:\/\/|mailto:|#)/i.test(value) ? value : "#";
+}
+
+// 处理行内 Markdown 语法，例如粗体、斜体、行内代码和链接。
+
+function inlineMarkdown(value) {
+  let html = escapeHtml(value);
+  html = html.replace(/`([^`]+)`/g, "<code>$1</code>");
+  html = html.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+  html = html.replace(/\*([^*]+)\*/g, "<em>$1</em>");
+  html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_, text, url) => `<a href="${sanitizeUrl(url)}" target="_blank" rel="noreferrer">${text}</a>`);
+  return html;
+}
+
+// 轻量级 Markdown 渲染器，覆盖当前编辑器所需的常见语法。
+
+function renderMarkdown(markdown) {
+  const source = (markdown || "").replace(/\r\n/g, "\n");
+  if (!source.trim()) return "<p>这里会显示你正在编写的 Markdown 预览。</p>";
+
+  const lines = source.split("\n");
+  const html = [];
+  let paragraph = [];
+  let bullets = [];
+  let ordered = [];
+  let inCode = false;
+  let codeLines = [];
+
+  function flushParagraph() {
+    if (!paragraph.length) return;
+    html.push(`<p>${paragraph.map(inlineMarkdown).join("<br />")}</p>`);
+    paragraph = [];
+  }
+
+  function flushBullets() {
+    if (!bullets.length) return;
+    html.push(`<ul>${bullets.join("")}</ul>`);
+    bullets = [];
+  }
+
+  function flushOrdered() {
+    if (!ordered.length) return;
+    html.push(`<ol>${ordered.join("")}</ol>`);
+    ordered = [];
+  }
+
+  function flushCode() {
+    if (!inCode) return;
+    html.push(`<pre><code>${escapeHtml(codeLines.join("\n"))}</code></pre>`);
+    inCode = false;
+    codeLines = [];
+  }
+
+  lines.forEach((line) => {
+    if (line.trim().startsWith("```")) {
+      flushParagraph();
+      flushBullets();
+      flushOrdered();
+      if (inCode) flushCode();
+      else {
+        inCode = true;
+        codeLines = [];
+      }
+      return;
+    }
+
+    if (inCode) {
+      codeLines.push(line);
+      return;
+    }
+
+    if (!line.trim()) {
+      flushParagraph();
+      flushBullets();
+      flushOrdered();
+      return;
+    }
+
+    if (/^---+$/.test(line.trim())) {
+      flushParagraph();
+      flushBullets();
+      flushOrdered();
+      html.push("<hr />");
+      return;
+    }
+
+    const heading = line.match(/^(#{1,6})\s+(.*)$/);
+    if (heading) {
+      flushParagraph();
+      flushBullets();
+      flushOrdered();
+      const level = heading[1].length;
+      html.push(`<h${level}>${inlineMarkdown(heading[2].trim())}</h${level}>`);
+      return;
+    }
+
+    const quote = line.match(/^>\s?(.*)$/);
+    if (quote) {
+      flushParagraph();
+      flushBullets();
+      flushOrdered();
+      html.push(`<blockquote><p>${inlineMarkdown(quote[1])}</p></blockquote>`);
+      return;
+    }
+
+    const bullet = line.match(/^[-*]\s+(.*)$/);
+    if (bullet) {
+      flushParagraph();
+      flushOrdered();
+      bullets.push(`<li>${inlineMarkdown(bullet[1])}</li>`);
+      return;
+    }
+
+    const num = line.match(/^\d+\.\s+(.*)$/);
+    if (num) {
+      flushParagraph();
+      flushBullets();
+      ordered.push(`<li>${inlineMarkdown(num[1])}</li>`);
+      return;
+    }
+
+    paragraph.push(line.trim());
+  });
+
+  if (inCode) flushCode();
+  flushParagraph();
+  flushBullets();
+  flushOrdered();
+  return html.join("");
+}
+
+// 通过 hash 切换工作台和文档页，避免引入额外路由依赖。
+
+function resolvePageFromHash() {
+  return window.location.hash === "#/docs" ? "docs" : "dashboard";
+}
+
 export default {
   name: "App",
   data() {
     return {
-      // 三个标签页共用同一张卡片，activeTab 决定当前激活哪一种表单。
       tabs: [
         { key: "login", label: "登录" },
         { key: "register", label: "注册" },
         { key: "reset", label: "找回密码" }
       ],
       activeTab: "login",
+      currentPage: "dashboard",
       busy: false,
+      workspaceLoading: false,
       overviewLoading: false,
-      overviewError: "",
-      message: {
-        type: "info",
-        text: ""
-      },
-      currentUser: null,
+      documentBusy: false,
       theme: "light",
+      message: { type: "info", text: "" },
+      documentMessage: { type: "info", text: "" },
+      draftNotice: "",
+      currentUser: null,
       overview: emptyOverview(),
-      loginForm: {
-        usernameOrEmail: "",
-        password: ""
-      },
-      registerForm: {
-        username: "",
-        email: "",
-        password: ""
-      },
-      resetForm: {
-        username: "",
-        email: "",
-        newPassword: ""
-      }
+      overviewError: "",
+      documents: [],
+      selectedDocumentId: null,
+      documentForm: emptyDocumentForm(),
+      loginForm: { usernameOrEmail: "", password: "" },
+      registerForm: { username: "", email: "", displayName: "", phoneNumber: "", password: "" },
+      resetForm: { username: "", email: "", newPassword: "" }
     };
   },
   computed: {
     authTitle() {
-      if (this.activeTab === "register") {
-        return "创建你的账号";
-      }
-      if (this.activeTab === "reset") {
-        return "找回密码";
-      }
+      if (this.activeTab === "register") return "创建账户";
+      if (this.activeTab === "reset") return "重置密码";
       return "登录到 TestY";
     },
     isDarkMode() {
@@ -299,140 +396,203 @@ export default {
     },
     themeClass() {
       return this.isDarkMode ? "theme-dark" : "theme-light";
+    },
+    renderedMarkdown() {
+      return renderMarkdown(this.documentForm.content);
+    },
+    recentDocuments() {
+      return this.documents.slice(0, 3);
     }
   },
   mounted() {
-    // 首屏先恢复主题，再尝试恢复本地登录态，提升刷新后的连续使用体验。
     this.theme = this.resolveTheme();
+    this.syncPageFromHash();
+    this._hashHandler = () => this.syncPageFromHash();
+    window.addEventListener("hashchange", this._hashHandler);
     this.restoreSession();
+  },
+  beforeUnmount() {
+    window.removeEventListener("hashchange", this._hashHandler);
   },
   methods: {
     resolveTheme() {
-      // 用户手动切换过主题时优先使用本地值，否则退回系统深浅色偏好。
       const savedTheme = window.localStorage.getItem(THEME_KEY);
-      if (savedTheme === "dark" || savedTheme === "light") {
-        return savedTheme;
-      }
-
-      return window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches
-        ? "dark"
-        : "light";
-    },
-    switchTab(tab) {
-      // 切换表单时清空旧消息，避免上一操作的提示影响当前场景。
-      this.activeTab = tab;
-      this.clearMessage();
-    },
-    setMessage(type, text) {
-      this.message = { type, text };
-    },
-    clearMessage() {
-      this.message = { type: "info", text: "" };
+      if (savedTheme === "dark" || savedTheme === "light") return savedTheme;
+      return window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
     },
     toggleTheme() {
       this.theme = this.isDarkMode ? "light" : "dark";
       window.localStorage.setItem(THEME_KEY, this.theme);
     },
-    clearCurrentSessionState() {
+    switchTab(tab) {
+      this.activeTab = tab;
+      this.message = { type: "info", text: "" };
+    },
+    syncPageFromHash() {
+      this.currentPage = resolvePageFromHash();
+    },
+    goToPage(page) {
+      window.location.hash = page === "docs" ? "#/docs" : "#/dashboard";
+      this.currentPage = page;
+    },
+    async openDocsPage(createDraft) {
+      this.goToPage("docs");
+      await this.loadDocuments();
+      if (createDraft) {
+        await this.startDraft();
+      }
+    },
+    async focusTitle() {
+      await nextTick();
+      if (this.$refs.titleInput) {
+        this.$refs.titleInput.focus();
+        this.$refs.titleInput.select();
+      }
+    },
+    mapUser(data) {
+      return {
+        username: data.username,
+        email: data.email,
+        displayName: data.displayName,
+        roles: data.roles || [],
+        permissions: data.permissions || [],
+        lastLoginIp: data.lastLoginIp
+      };
+    },
+    clearWorkspaceState() {
       this.currentUser = null;
       this.overview = emptyOverview();
       this.overviewError = "";
+      this.documents = [];
+      this.selectedDocumentId = null;
+      this.documentForm = emptyDocumentForm();
+      this.documentMessage = { type: "info", text: "" };
+      this.draftNotice = "";
     },
     async restoreSession() {
       try {
-        const data = await this.requestJson("/api/auth/me", {
-          method: "GET",
-          expectEnvelope: true
-        });
-        this.currentUser = { username: data.username, email: data.email };
-        await this.loadOverview();
+        const data = await this.requestJson("/api/auth/me", { method: "GET", expectEnvelope: true });
+        this.currentUser = this.mapUser(data);
+        await this.refreshWorkspace();
       } catch (error) {
         if (error.isAuthError) {
-          this.clearCurrentSessionState();
+          this.clearWorkspaceState();
           return;
         }
-        this.setMessage("error", error.message);
+        this.message = { type: "error", text: error.message };
+      }
+    },
+    async refreshWorkspace() {
+      this.workspaceLoading = true;
+      try {
+        await Promise.all([this.loadOverview(), this.loadDocuments()]);
+      } finally {
+        this.workspaceLoading = false;
       }
     },
     async submitLogin() {
-      // 登录成功后缓存最小用户信息，并立即拉取工作台概览。
       this.busy = true;
-      this.clearMessage();
-
+      this.message = { type: "info", text: "" };
       try {
         const data = await this.postJson("/api/auth/login", this.loginForm);
-        this.currentUser = { username: data.username, email: data.email };
+        this.currentUser = this.mapUser(data);
         this.loginForm.password = "";
-        this.setMessage("success", data.message);
-        await this.loadOverview();
+        this.message = { type: "success", text: data.message };
+        this.goToPage("dashboard");
+        await this.refreshWorkspace();
       } catch (error) {
-        this.setMessage("error", error.message);
+        this.message = { type: "error", text: error.message };
       } finally {
         this.busy = false;
       }
     },
     async submitRegister() {
-      // 注册成功后预填其它表单，减少用户重复输入。
       this.busy = true;
-      this.clearMessage();
-
+      this.message = { type: "info", text: "" };
       try {
         const data = await this.postJson("/api/auth/register", this.registerForm);
-        this.setMessage("success", data.message + " 现在可以直接登录。");
+        this.message = { type: "success", text: data.message + " 现在可以直接登录。" };
         this.loginForm.usernameOrEmail = this.registerForm.username;
-        this.loginForm.password = "";
         this.resetForm.username = this.registerForm.username;
         this.resetForm.email = this.registerForm.email;
-        this.registerForm.password = "";
+        this.registerForm = { username: "", email: "", displayName: "", phoneNumber: "", password: "" };
         this.activeTab = "login";
       } catch (error) {
-        this.setMessage("error", error.message);
+        this.message = { type: "error", text: error.message };
       } finally {
         this.busy = false;
       }
     },
     async submitReset() {
-      // 重置密码成功后切回登录页，引导用户直接使用新密码登录。
       this.busy = true;
-      this.clearMessage();
-
+      this.message = { type: "info", text: "" };
       try {
         const data = await this.postJson("/api/auth/reset-password", this.resetForm);
-        this.setMessage("success", data.message + " 请使用新密码重新登录。");
+        this.message = { type: "success", text: data.message + " 请使用新密码重新登录。" };
         this.loginForm.usernameOrEmail = this.resetForm.username;
-        this.loginForm.password = "";
         this.activeTab = "login";
       } catch (error) {
-        this.setMessage("error", error.message);
+        this.message = { type: "error", text: error.message };
       } finally {
         this.busy = false;
       }
     },
     async loadOverview() {
-      // 概览区单独维护加载与报错状态，不影响用户账号面板显示。
       this.overviewLoading = true;
       this.overviewError = "";
-
       try {
-        const response = await this.requestJson("/api/overview", {
-          method: "GET"
-        });
-        if (!response) {
-          throw new Error("项目概览加载失败，请稍后重试。");
-        }
-        this.overview = response;
+        this.overview = await this.requestJson("/api/overview", { method: "GET" });
       } catch (error) {
         this.overview = emptyOverview();
-        if (error.isAuthError) {
-          this.clearCurrentSessionState();
-          this.overviewError = "鐧诲綍宸茶繃鏈燂紝璇疯繃鍚庨噸鏂扮櫥褰曘€?";
-          this.setMessage("info", this.overviewError);
-          this.activeTab = "login";
-        } else {
-          this.overviewError = error.message;
-        }
+        this.overviewError = error.message;
       } finally {
         this.overviewLoading = false;
+      }
+    },
+    async loadDocuments() {
+      try {
+        this.documents = await this.requestJson("/api/docs", { method: "GET" });
+      } catch (error) {
+        this.documents = [];
+        this.documentMessage = { type: "error", text: error.message };
+      }
+    },
+    async selectDocument(documentId) {
+      this.documentMessage = { type: "info", text: "" };
+      try {
+        const data = await this.requestJson(`/api/docs/${documentId}`, { method: "GET" });
+        this.selectedDocumentId = data.id;
+        this.documentForm = { title: data.title, content: data.content };
+        this.draftNotice = "";
+        this.goToPage("docs");
+      } catch (error) {
+        this.documentMessage = { type: "error", text: error.message };
+      }
+    },
+    async startDraft() {
+      this.goToPage("docs");
+      this.selectedDocumentId = null;
+      this.documentForm = emptyDocumentForm();
+      this.draftNotice = "新草稿";
+      this.documentMessage = { type: "info", text: "已创建空白草稿，请直接输入标题和内容。" };
+      await this.focusTitle();
+    },
+    async saveDocument() {
+      this.documentBusy = true;
+      this.documentMessage = { type: "info", text: "" };
+      try {
+        const url = this.selectedDocumentId ? `/api/docs/${this.selectedDocumentId}` : "/api/docs";
+        const method = this.selectedDocumentId ? "PUT" : "POST";
+        const data = await this.writeJson(url, method, this.documentForm);
+        this.selectedDocumentId = data.id;
+        this.documentForm = { title: data.title, content: data.content };
+        this.draftNotice = "";
+        await this.loadDocuments();
+        this.documentMessage = { type: "success", text: "文档已保存。" };
+      } catch (error) {
+        this.documentMessage = { type: "error", text: error.message };
+      } finally {
+        this.documentBusy = false;
       }
     },
     async logout() {
@@ -440,86 +600,52 @@ export default {
         await this.postJson("/api/auth/logout", {});
       } catch (error) {
         if (!error.isAuthError) {
-          this.setMessage("error", error.message);
+          this.message = { type: "error", text: error.message };
           return;
         }
       }
-      // 退出时同步清理登录态和依赖登录态展示的概览数据。
-      this.currentUser = null;
-      this.overview = emptyOverview();
-      this.overviewError = "";
-      window.localStorage.removeItem(SESSION_KEY);
-      this.setMessage("info", "你已退出登录。");
+      this.clearWorkspaceState();
+      this.goToPage("dashboard");
+      this.message = { type: "info", text: "你已退出登录。" };
       this.activeTab = "login";
     },
+    formatDate(value) {
+      return value ? value.replace("T", " ") : "未知";
+    },
     async requestJson(url, options = {}) {
-      const {
-        expectEnvelope = false,
-        headers = {},
-        ...fetchOptions
-      } = options;
-
-      const response = await fetch(url, {
-        credentials: "include",
-        ...fetchOptions,
-        headers
-      });
-
+      const { expectEnvelope = false, headers = {}, ...fetchOptions } = options;
+      const response = await fetch(url, { credentials: "include", ...fetchOptions, headers });
       const contentType = response.headers.get("content-type") || "";
       let data = null;
       let text = "";
-
-      if (contentType.includes("application/json")) {
-        data = await response.json();
-      } else {
-        text = await response.text();
-      }
-
-      const message = (data && data.message) || text || "璇锋眰澶辫触锛岃绋嶅悗鍐嶈瘯銆?";
-      if (response.status === 401) {
-        throw createAuthError(message);
-      }
-
-      if (!response.ok) {
-        throw new Error(message);
-      }
-
-      if (expectEnvelope && (!data || !data.success)) {
-        throw new Error(message);
-      }
-
+      if (contentType.includes("application/json")) data = await response.json();
+      else text = await response.text();
+      const message = (data && data.message) || text || "请求失败，请稍后再试。";
+      if (response.status === 401) throw createAuthError(message);
+      if (!response.ok) throw new Error(message);
+      if (expectEnvelope && (!data || !data.success)) throw new Error(message);
       return data;
     },
     async postJson(url, payload) {
-      // 三个认证接口共用这层请求封装，统一处理 JSON 响应和错误信息提取。
+      return this.writeJson(url, "POST", payload);
+    },
+    async writeJson(url, method, payload) {
       const response = await fetch(url, {
-        method: "POST",
+        method,
         credentials: "include",
-        headers: {
-          "Content-Type": "application/json"
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload)
       });
-
       const contentType = response.headers.get("content-type") || "";
       let data = null;
       let text = "";
-
-      // 如果后端没有返回标准 JSON，也尽量把文本错误原样透出给页面消息栏。
-      if (contentType.includes("application/json")) {
-        data = await response.json();
-      } else {
-        text = await response.text();
+      if (contentType.includes("application/json")) data = await response.json();
+      else text = await response.text();
+      if (response.status === 401) throw createAuthError((data && data.message) || text);
+      if (!response.ok) throw new Error((data && data.message) || text || "请求失败，请稍后再试。");
+      if (data && Object.prototype.hasOwnProperty.call(data, "success") && !data.success) {
+        throw new Error(data.message || "请求失败，请稍后再试。");
       }
-
-      if (!response.ok) {
-        throw new Error((data && data.message) || text || "请求失败，请稍后再试。");
-      }
-
-      if (!data || !data.success) {
-        throw new Error((data && data.message) || "请求失败，请稍后再试。");
-      }
-
       return data;
     }
   }
@@ -527,553 +653,23 @@ export default {
 </script>
 
 <style>
-:root {
-  --bg: #f6efe6;
-  --paper: rgba(255, 252, 247, 0.9);
-  --paper-strong: #fffdfa;
-  --ink: #1a2128;
-  --muted: #66707a;
-  --line: rgba(26, 33, 40, 0.1);
-  --primary: #0e6b69;
-  --primary-deep: #17394d;
-  --accent: #ca6b2c;
-  --success: #176946;
-  --success-soft: rgba(23, 105, 70, 0.12);
-  --danger: #b42318;
-  --danger-soft: rgba(180, 35, 24, 0.12);
-}
-
-.theme-light {
-  color-scheme: light;
-}
-
-.theme-dark {
-  color-scheme: dark;
-  --bg: #11161c;
-  --paper: rgba(24, 31, 38, 0.88);
-  --paper-strong: #1b232b;
-  --ink: #edf3f7;
-  --muted: #9ca9b5;
-  --line: rgba(237, 243, 247, 0.1);
-  --primary: #7ae0d4;
-  --primary-deep: #9bd8ff;
-  --accent: #ffab6b;
-  --success: #7fe0a0;
-  --success-soft: rgba(127, 224, 160, 0.14);
-  --danger: #ff8f84;
-  --danger-soft: rgba(255, 143, 132, 0.14);
-}
-
-* {
-  box-sizing: border-box;
-}
-
-body {
-  margin: 0;
-  font-family: "Trebuchet MS", "Segoe UI", "Microsoft YaHei", sans-serif;
-  background: var(--bg);
-}
-
-button,
-input {
-  font: inherit;
-}
-
-code {
-  padding: 2px 8px;
-  border-radius: 999px;
-  background: rgba(23, 57, 77, 0.08);
-}
-
-#app {
-  min-height: 100vh;
-}
-
-.page {
-  width: min(1120px, calc(100% - 32px));
-  margin: 0 auto;
-  padding: 36px 0 52px;
-  min-height: 100vh;
-  color: var(--ink);
-  background:
-    radial-gradient(circle at top left, rgba(14, 107, 105, 0.16), transparent 22%),
-    radial-gradient(circle at bottom right, rgba(202, 107, 44, 0.12), transparent 28%),
-    linear-gradient(135deg, rgba(245, 238, 228, 0.96) 0%, rgba(248, 247, 242, 0.9) 55%, rgba(237, 244, 242, 0.86) 100%);
-}
-
-.theme-dark.page {
-  background:
-    radial-gradient(circle at top left, rgba(70, 181, 165, 0.18), transparent 22%),
-    radial-gradient(circle at bottom right, rgba(255, 171, 107, 0.16), transparent 28%),
-    linear-gradient(135deg, rgba(14, 18, 24, 0.98) 0%, rgba(18, 24, 31, 0.94) 55%, rgba(15, 22, 29, 0.96) 100%);
-}
-
-.auth-layout {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(340px, 430px);
-  gap: 24px;
-  align-items: stretch;
-}
-
-.brand-panel,
-.auth-card,
-.dashboard-head,
-.panel {
-  border: 1px solid var(--line);
-  border-radius: 28px;
-  background: var(--paper);
-  box-shadow: 0 22px 60px rgba(26, 33, 40, 0.08);
-  backdrop-filter: blur(12px);
-}
-
-.brand-panel {
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  padding: 34px;
-  background:
-    linear-gradient(160deg, rgba(255, 255, 255, 0.76), rgba(248, 241, 233, 0.92)),
-    var(--paper);
-}
-
-.theme-dark .brand-panel {
-  background:
-    linear-gradient(160deg, rgba(30, 38, 47, 0.88), rgba(18, 25, 31, 0.94)),
-    var(--paper);
-}
-
-.auth-card,
-.panel {
-  padding: 24px;
-}
-
-.dashboard {
-  display: grid;
-  gap: 22px;
-}
-
-.dashboard-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 20px;
-  padding: 28px 30px;
-}
-
-.dashboard-grid {
-  display: grid;
-  grid-template-columns: minmax(280px, 320px) minmax(0, 1fr);
-  gap: 22px;
-}
-
-.brand-top {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-}
-
-.eyebrow,
-.section-tag {
-  display: block;
-  margin: 0 0 10px;
-  color: var(--primary);
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.brand-panel h1,
-.dashboard-head h1 {
-  margin: 0;
-  font-size: clamp(36px, 5.8vw, 68px);
-  line-height: 0.95;
-  letter-spacing: -0.04em;
-}
-
-.dashboard-head h1 {
-  font-size: clamp(30px, 4vw, 48px);
-}
-
-.lead {
-  margin: 18px 0 0;
-  color: var(--muted);
-  font-size: 18px;
-  line-height: 1.8;
-}
-
-.lead.small {
-  font-size: 16px;
-}
-
-.brand-footer {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  margin-top: 24px;
-}
-
-.mini-chip,
-.status-badge,
-.online-mark,
-.module-count {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 34px;
-  padding: 0 14px;
-  border-radius: 999px;
-  font-size: 13px;
-  font-weight: 700;
-}
-
-.mini-chip {
-  background: rgba(255, 255, 255, 0.72);
-  border: 1px solid var(--line);
-}
-
-.theme-button {
-  min-height: 40px;
-  padding: 0 14px;
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.72);
-  color: var(--ink);
-  cursor: pointer;
-  font-weight: 700;
-  transition: transform 0.18s ease, background 0.18s ease;
-}
-
-.theme-dark .theme-button,
-.theme-dark .mini-chip,
-.theme-dark .tab-button,
-.theme-dark .secondary-button,
-.theme-dark .account-item,
-.theme-dark .metric-card,
-.theme-dark .module-box {
-  background: rgba(255, 255, 255, 0.04);
-}
-
-.theme-button:hover {
-  transform: translateY(-1px);
-}
-
-.auth-head,
-.panel-head {
-  display: flex;
-  justify-content: space-between;
-  gap: 16px;
-  align-items: flex-start;
-  margin-bottom: 18px;
-}
-
-.auth-head h2,
-.panel-head h2 {
-  margin: 0;
-  font-size: 28px;
-}
-
-.status-badge {
-  background: rgba(14, 107, 105, 0.1);
-  color: var(--primary);
-}
-
-.online-mark {
-  background: var(--success-soft);
-  color: var(--success);
-}
-
-.tab-row {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 10px;
-  margin-bottom: 18px;
-}
-
-.tab-button {
-  min-height: 44px;
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.82);
-  color: var(--muted);
-  cursor: pointer;
-  font-weight: 700;
-  transition: transform 0.18s ease, background 0.18s ease, color 0.18s ease;
-}
-
-.tab-button:hover {
-  transform: translateY(-1px);
-}
-
-.tab-button.active {
-  border-color: transparent;
-  background: linear-gradient(135deg, var(--ink), var(--primary-deep));
-  color: #fff;
-}
-
-.message-bar {
-  margin: 0 0 16px;
-  padding: 14px 16px;
-  border-radius: 18px;
-  font-size: 14px;
-  line-height: 1.7;
-}
-
-.message-bar.info {
-  background: rgba(23, 57, 77, 0.08);
-  color: var(--primary-deep);
-}
-
-.message-bar.success {
-  background: var(--success-soft);
-  color: var(--success);
-}
-
-.message-bar.error {
-  background: var(--danger-soft);
-  color: var(--danger);
-}
-
-.form-grid {
-  display: grid;
-  gap: 14px;
-}
-
-.form-grid label {
-  display: grid;
-  gap: 8px;
-}
-
-.form-grid span {
-  font-size: 14px;
-  font-weight: 700;
-}
-
-.form-grid input {
-  width: 100%;
-  min-height: 50px;
-  padding: 0 16px;
-  border: 1px solid var(--line);
-  border-radius: 16px;
-  background: rgba(255, 255, 255, 0.94);
-  transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
-}
-
-.theme-dark .form-grid input {
-  background: rgba(255, 255, 255, 0.04);
-  color: var(--ink);
-}
-
-.form-grid input:focus {
-  outline: none;
-  border-color: rgba(14, 107, 105, 0.45);
-  box-shadow: 0 0 0 4px rgba(14, 107, 105, 0.08);
-  transform: translateY(-1px);
-}
-
-.primary-button,
-.secondary-button,
-.danger-button {
-  min-height: 48px;
-  padding: 0 18px;
-  border-radius: 999px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: transform 0.18s ease, opacity 0.18s ease;
-}
-
-.primary-button:hover,
-.secondary-button:hover,
-.danger-button:hover {
-  transform: translateY(-1px);
-}
-
-.primary-button:disabled,
-.secondary-button:disabled,
-.danger-button:disabled {
-  opacity: 0.7;
-  cursor: wait;
-}
-
-.primary-button {
-  border: 0;
-  color: #fff;
-  background: linear-gradient(135deg, #18212a, #244559);
-  box-shadow: 0 18px 34px rgba(26, 33, 40, 0.16);
-}
-
-.secondary-button {
-  border: 1px solid var(--line);
-  background: rgba(255, 255, 255, 0.88);
-  color: var(--ink);
-}
-
-.danger-button {
-  border: 0;
-  color: #fff;
-  background: linear-gradient(135deg, #8c2d23, #b42318);
-}
-
-.hint-text {
-  margin: 18px 0 0;
-  color: var(--muted);
-  font-size: 14px;
-  line-height: 1.7;
-}
-
-.head-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-}
-
-.account-panel {
-  display: grid;
-  align-content: start;
-  gap: 14px;
-}
-
-.account-item,
-.metric-card,
-.module-box {
-  border: 1px solid var(--line);
-  border-radius: 22px;
-  background: rgba(255, 255, 255, 0.8);
-}
-
-.account-item {
-  padding: 18px;
-}
-
-.account-item span,
-.metric-card span {
-  color: var(--muted);
-  font-size: 13px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-}
-
-.account-item strong,
-.metric-card strong {
-  display: block;
-  margin-top: 8px;
-  font-size: 22px;
-  line-height: 1.5;
-}
-
-.metric-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px;
-}
-
-.metric-card {
-  padding: 18px;
-}
-
-.metric-wide {
-  grid-column: 1 / -1;
-}
-
-.module-box {
-  margin-top: 16px;
-  padding: 18px;
-}
-
-.module-head {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 12px;
-}
-
-.module-tag {
-  margin-bottom: 0;
-}
-
-.module-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  margin-top: 14px;
-}
-
-.module-chip {
-  display: inline-flex;
-  align-items: center;
-  min-height: 38px;
-  padding: 0 14px;
-  border-radius: 999px;
-  border: 1px solid var(--line);
-  background: var(--paper-strong);
-  font-weight: 700;
-}
-
-.theme-dark .module-chip {
-  background: rgba(255, 255, 255, 0.06);
-}
-
-.fade-up {
-  animation: fadeUp 0.42s ease;
-}
-
-@keyframes fadeUp {
-  from {
-    opacity: 0;
-    transform: translateY(12px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@media (max-width: 980px) {
-  .auth-layout,
-  .dashboard-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .metric-grid {
-    grid-template-columns: 1fr;
-  }
-}
-
-@media (max-width: 720px) {
-  .page {
-    width: min(100% - 20px, 1120px);
-    padding: 20px 0 38px;
-  }
-
-  .brand-panel,
-  .auth-card,
-  .dashboard-head,
-  .panel {
-    padding: 20px;
-    border-radius: 24px;
-  }
-
-  .dashboard-head,
-  .auth-head,
-  .panel-head,
-  .module-head,
-  .brand-top {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-
-  .tab-row {
-    grid-template-columns: 1fr;
-  }
-
-  .head-actions {
-    width: 100%;
-  }
-
-  .secondary-button,
-  .danger-button {
-    width: 100%;
-  }
-}
+:root{--bg:#f3ecdf;--paper:rgba(255,252,247,.94);--paper-strong:#fffdfa;--ink:#172028;--muted:#5d6973;--line:rgba(23,32,40,.1);--primary:#0f6b67;--primary-deep:#23465c;--success:#176946;--danger:#b42318;--success-soft:rgba(23,105,70,.12);--danger-soft:rgba(180,35,24,.12)}
+.theme-dark{color-scheme:dark;--bg:#10161c;--paper:rgba(22,30,37,.95);--paper-strong:#182129;--ink:#edf3f7;--muted:#98a5af;--line:rgba(237,243,247,.1);--primary:#73ddd2;--primary-deep:#92d7ff;--success-soft:rgba(23,105,70,.18);--danger-soft:rgba(180,35,24,.2)}
+*{box-sizing:border-box}body{margin:0;font-family:"Trebuchet MS","Segoe UI","Microsoft YaHei",sans-serif;background:var(--bg)}button,input,textarea{font:inherit}#app{min-height:100vh}
+.page{width:min(1280px,calc(100% - 24px));margin:0 auto;padding:24px 0 36px;color:var(--ink)}
+.auth,.workspace,.dashboard-grid,.docs-layout,.editor-grid,.form,.doc-list,.doc-summary-list{display:grid;gap:20px}.auth{grid-template-columns:1.05fr .95fr}.dashboard-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.docs-layout{grid-template-columns:340px minmax(0,1fr)}.editor-grid{grid-template-columns:minmax(0,1fr) minmax(320px,420px)}.form{gap:12px}
+.panel{border:1px solid var(--line);border-radius:24px;background:var(--paper);padding:22px;box-shadow:0 18px 44px rgba(23,32,40,.08)}
+.eyebrow{margin:0 0 10px;color:var(--primary);font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase}
+h1,h2,p{margin:0}h1{font-size:clamp(30px,4vw,50px);line-height:1.05}h2{font-size:24px}.muted,.metric span,.empty,.preview-head small{color:var(--muted);line-height:1.7}
+.header-row,.actions,.tabs,.chips,.preview-head{display:flex;gap:10px}.header-row{justify-content:space-between;align-items:flex-start}.header-row.compact{align-items:center}.actions,.chips{flex-wrap:wrap}
+.tab,.ghost,.primary,.danger,.doc-card{transition:transform .18s ease,box-shadow .18s ease}.tab,.ghost{border:1px solid var(--line);background:rgba(255,255,255,.7);color:var(--ink)}.tab,.ghost,.primary,.danger{min-height:42px;padding:0 16px;border-radius:999px;cursor:pointer;font-weight:700}.tab.active,.primary{border:0;color:#fff;background:linear-gradient(135deg,#172028,var(--primary-deep))}.small{min-height:36px;padding:0 12px;font-size:13px}.danger{border:0;color:#fff;background:linear-gradient(135deg,#8c2d23,#b42318)}.tab:hover,.ghost:hover,.primary:hover,.danger:hover,.doc-card:hover{transform:translateY(-1px)}
+input,textarea{width:100%;border:1px solid var(--line);border-radius:16px;padding:12px 14px;background:rgba(255,255,255,.92);color:var(--ink)}textarea{min-height:520px;resize:vertical;line-height:1.7}input:focus,textarea:focus{outline:none;border-color:rgba(15,107,103,.45);box-shadow:0 0 0 4px rgba(15,107,103,.08)}
+.message{padding:12px 14px;border-radius:16px;font-size:14px}.message.info{background:rgba(15,107,103,.08)}.message.success{background:var(--success-soft);color:var(--success)}.message.error{background:var(--danger-soft);color:var(--danger)}
+.metric{display:grid;gap:8px;padding:14px 0;border-bottom:1px solid var(--line)}.metric:last-of-type{border-bottom:0}.metric strong{font-size:20px;line-height:1.5}
+.chip{display:inline-flex;align-items:center;min-height:34px;padding:0 12px;border-radius:999px;border:1px solid var(--line)}.full{width:100%}
+.doc-summary{display:grid;gap:6px;padding:14px 16px;border:1px solid var(--line);border-radius:18px;background:rgba(255,255,255,.62)}.doc-summary strong{font-size:15px;line-height:1.5}.empty{padding:20px 16px;border:1px dashed var(--line);border-radius:18px}
+.doc-card{width:100%;padding:16px;text-align:left;border:1px solid var(--line);border-radius:20px;background:linear-gradient(135deg,rgba(255,255,255,.92),rgba(247,244,239,.88));cursor:pointer}.doc-card strong{display:block;font-size:16px;line-height:1.5}.doc-card.active{border-color:transparent;color:#fff;background:linear-gradient(135deg,rgba(20,56,78,.98),rgba(15,107,103,.92));box-shadow:0 16px 34px rgba(20,56,78,.22)}
+.badge{display:inline-flex;align-items:center;min-height:36px;padding:0 12px;border-radius:999px;background:rgba(15,107,103,.1);color:var(--primary);font-size:13px;font-weight:700}
+.preview-head{justify-content:space-between;align-items:center;margin-bottom:12px}.preview{min-height:520px;padding:14px;border:1px solid var(--line);border-radius:16px;background:var(--paper-strong);overflow:auto;line-height:1.8;word-break:break-word}.preview h1,.preview h2,.preview h3,.preview h4,.preview h5,.preview h6{margin:0 0 12px;line-height:1.3}.preview p,.preview ul,.preview ol,.preview blockquote,.preview pre{margin:0 0 14px}.preview ul,.preview ol{padding-left:20px}.preview hr{border:0;border-top:1px solid var(--line);margin:18px 0}.preview blockquote{padding:8px 12px;border-left:4px solid rgba(15,107,103,.35);background:rgba(15,107,103,.06);border-radius:12px}.preview pre,.preview code{font-family:"Consolas","Courier New",monospace}.preview pre{padding:12px;border-radius:12px;background:rgba(20,56,78,.08)}.preview code{padding:2px 6px;border-radius:8px;background:rgba(20,56,78,.08)}.preview pre code{padding:0;background:transparent}.preview a{color:var(--primary)}
+@media (max-width:1080px){.dashboard-grid,.docs-layout,.editor-grid{grid-template-columns:1fr}}@media (max-width:920px){.auth{grid-template-columns:1fr}}@media (max-width:720px){.header-row{flex-direction:column;align-items:flex-start}.tabs{flex-wrap:wrap}.actions{width:100%}.ghost,.danger{width:100%}}
 </style>

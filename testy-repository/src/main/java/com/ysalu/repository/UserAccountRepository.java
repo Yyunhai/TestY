@@ -5,7 +5,7 @@ import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 /**
- * 用户账号数据访问接口，负责常用查询和唯一性校验。
+ * 用户账户仓储接口。
  */
 public interface UserAccountRepository extends JpaRepository<UserAccount, Long> {
 

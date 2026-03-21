@@ -3,10 +3,11 @@ package com.ysalu;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
-@SpringBootApplication
 /**
- * Spring Boot 启动入口，负责装配整个多模块应用。
+ * Spring Boot 应用启动入口。
+ * 该模块负责装配 Web 层、服务层、数据层与文档模块，并启动整个系统。
  */
+@SpringBootApplication
 public class TestYApplication {
 
     /**
