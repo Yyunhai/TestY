@@ -20,6 +20,7 @@
     <description>Standard multi-module Spring Boot template for TestY</description>
 
     <modules>
+        <module>testy-logging</module>
         <module>testy-repository</module>
         <module>testy-service</module>
         <module>testy-document</module>

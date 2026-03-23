@@ -24,6 +24,8 @@ TestY 是一个基于 Spring Boot 多模块后端和 Vue 3 前端的示例系统
 
 - `testy-repository`
   持久化层，包含 JPA 实体和仓储接口。
+- `testy-logging`
+  日志模块，负责统一日志输出格式、文件落盘和日志目录配置。
 - `testy-service`
   核心业务层，包含认证、权限、管理员、日志等服务。
 - `testy-document`
@@ -86,6 +88,20 @@ TestY 是一个基于 Spring Boot 多模块后端和 Vue 3 前端的示例系统
 - 操作日志
   用于记录关键业务操作，包含操作者、模块、动作、目标对象、结果、说明和发生时间。
 
+同时，运行日志会通过 `testy-logging` 模块写入项目根目录下的 `logs/` 文件夹，默认拆分为：
+
+- `logs/application.log`
+- `logs/security.log`
+- `logs/operation.log`
+- `logs/error.log`
+
+日志模块还包含定期清理任务，默认每天执行一次，删除超过 14 天的历史日志文件。可通过以下环境变量调整：
+
+- `TESTY_LOG_CLEANUP_ENABLED`
+- `TESTY_LOG_RETENTION_DAYS`
+- `TESTY_LOG_CLEANUP_INITIAL_DELAY_MS`
+- `TESTY_LOG_CLEANUP_INTERVAL_MS`
+
 当前会记录的典型操作包括：
 
 - 用户注册
@@ -136,6 +152,7 @@ mvn -pl Spring-boot-test -am spring-boot:run
 ```
 
 默认后端端口为 `8080`。
+默认日志目录为项目根目录下的 `logs/`，可通过环境变量 `TESTY_LOG_PATH` 覆盖。
 
 ## 前端运行方式
 
@@ -216,6 +233,7 @@ docker compose up --build
 
 - MySQL 暴露在 `3306`
 - 应用暴露在 `8080`
+- 应用日志保存在项目根目录 `logs/`
 
 ## 后续扩展建议
 

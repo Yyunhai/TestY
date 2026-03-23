@@ -1,14 +1,13 @@
 package com.ysalu.document;
 
-import com.ysalu.domain.audit.OperationLog;
 import com.ysalu.domain.auth.UserAccount;
 import com.ysalu.domain.document.DocumentVersionSource;
 import com.ysalu.domain.document.MarkdownDocument;
 import com.ysalu.domain.document.MarkdownDocumentVersion;
 import com.ysalu.repository.auth.UserAccountRepository;
-import com.ysalu.repository.audit.OperationLogRepository;
 import com.ysalu.repository.document.MarkdownDocumentRepository;
 import com.ysalu.repository.document.MarkdownDocumentVersionRepository;
+import com.ysalu.service.log.OperationLogService;
 import java.util.ArrayList;
 import java.util.List;
 import org.springframework.stereotype.Service;
@@ -23,18 +22,18 @@ public class MarkdownDocumentService {
     private final MarkdownDocumentRepository markdownDocumentRepository;
     private final MarkdownDocumentVersionRepository markdownDocumentVersionRepository;
     private final UserAccountRepository userAccountRepository;
-    private final OperationLogRepository operationLogRepository;
+    private final OperationLogService operationLogService;
 
     public MarkdownDocumentService(
             MarkdownDocumentRepository markdownDocumentRepository,
             MarkdownDocumentVersionRepository markdownDocumentVersionRepository,
             UserAccountRepository userAccountRepository,
-            OperationLogRepository operationLogRepository
+            OperationLogService operationLogService
     ) {
         this.markdownDocumentRepository = markdownDocumentRepository;
         this.markdownDocumentVersionRepository = markdownDocumentVersionRepository;
         this.userAccountRepository = userAccountRepository;
-        this.operationLogRepository = operationLogRepository;
+        this.operationLogService = operationLogService;
     }
 
     @Transactional(readOnly = true)
@@ -213,16 +212,17 @@ public class MarkdownDocumentService {
     }
 
     private void recordOperationLog(UserAccount owner, String action, Long targetId, String message, String detail) {
-        OperationLog operationLog = new OperationLog();
-        operationLog.setOperatorUser(owner);
-        operationLog.setOperatorUsername(owner == null || owner.getUsername() == null ? "unknown" : owner.getUsername());
-        operationLog.setModuleCode("DOCS");
-        operationLog.setActionCode(action);
-        operationLog.setTargetType("DOCUMENT");
-        operationLog.setTargetId(targetId == null ? null : String.valueOf(targetId));
-        operationLog.setSuccess(true);
-        operationLog.setMessage(message);
-        operationLog.setDetail(detail);
-        operationLogRepository.save(operationLog);
+        operationLogService.record(
+                owner == null ? null : owner.getId(),
+                owner == null ? null : owner.getUsername(),
+                "DOCS",
+                action,
+                "DOCUMENT",
+                targetId,
+                true,
+                message,
+                detail,
+                null
+        );
     }
 }

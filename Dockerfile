@@ -17,11 +17,13 @@ FROM maven:3.9.9-eclipse-temurin-8 AS backend-builder
 WORKDIR /workspace
 
 COPY pom.xml ./pom.xml
+COPY testy-logging/pom.xml ./testy-logging/pom.xml
 COPY testy-repository/pom.xml ./testy-repository/pom.xml
 COPY testy-service/pom.xml ./testy-service/pom.xml
 COPY testy-document/pom.xml ./testy-document/pom.xml
 COPY Spring-boot-test/pom.xml ./Spring-boot-test/pom.xml
 
+COPY testy-logging/src ./testy-logging/src
 COPY testy-repository/src ./testy-repository/src
 COPY testy-service/src ./testy-service/src
 COPY testy-document/src ./testy-document/src
@@ -36,6 +38,10 @@ FROM eclipse-temurin:8-jre-alpine
 WORKDIR /app
 
 COPY --from=backend-builder /workspace/Spring-boot-test/target/spring-boot-test-1.0-SNAPSHOT.jar /app/app.jar
+
+RUN mkdir -p /app/logs
+
+VOLUME ["/app/logs"]
 
 EXPOSE 8080
 
