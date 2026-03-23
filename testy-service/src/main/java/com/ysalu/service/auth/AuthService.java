@@ -7,6 +7,7 @@ import com.ysalu.domain.auth.SystemRole;
 import com.ysalu.domain.auth.UserAccount;
 import com.ysalu.domain.auth.UserProfile;
 import com.ysalu.domain.auth.UserRole;
+import com.ysalu.logging.ApplicationLogService;
 import com.ysalu.repository.auth.LoginAuditRepository;
 import com.ysalu.repository.auth.RolePermissionRepository;
 import com.ysalu.repository.auth.SystemRoleRepository;
@@ -51,6 +52,7 @@ public class AuthService {
     private final LoginAuditRepository loginAuditRepository;
     private final PasswordEncoder passwordEncoder;
     private final OperationLogService operationLogService;
+    private final ApplicationLogService applicationLogService;
 
     public AuthService(
             UserAccountRepository userAccountRepository,
@@ -60,7 +62,8 @@ public class AuthService {
             RolePermissionRepository rolePermissionRepository,
             LoginAuditRepository loginAuditRepository,
             PasswordEncoder passwordEncoder,
-            OperationLogService operationLogService
+            OperationLogService operationLogService,
+            ApplicationLogService applicationLogService
     ) {
         this.userAccountRepository = userAccountRepository;
         this.userProfileRepository = userProfileRepository;
@@ -70,6 +73,7 @@ public class AuthService {
         this.loginAuditRepository = loginAuditRepository;
         this.passwordEncoder = passwordEncoder;
         this.operationLogService = operationLogService;
+        this.applicationLogService = applicationLogService;
     }
 
     /**
@@ -269,6 +273,17 @@ public class AuthService {
         loginAudit.setRolesSnapshot(joinSnapshot(roles));
         loginAudit.setPermissionsSnapshot(joinSnapshot(permissions));
         loginAuditRepository.save(loginAudit);
+        applicationLogService.security(
+                success,
+                success ? "LOGIN_SUCCESS" : "LOGIN_FAILURE",
+                message,
+                "principal", loginAudit.getPrincipal(),
+                "remoteIp", loginAudit.getRemoteIp(),
+                "userId", userAccount == null ? null : userAccount.getId(),
+                "userAgent", loginAudit.getUserAgent(),
+                "roles", loginAudit.getRolesSnapshot(),
+                "permissions", loginAudit.getPermissionsSnapshot()
+        );
     }
 
     /**

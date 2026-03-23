@@ -17,6 +17,11 @@
     <dependencies>
         <dependency>
             <groupId>com.ysalu</groupId>
+            <artifactId>testy-logging</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.ysalu</groupId>
             <artifactId>testy-service</artifactId>
             <version>${project.version}</version>
         </dependency>

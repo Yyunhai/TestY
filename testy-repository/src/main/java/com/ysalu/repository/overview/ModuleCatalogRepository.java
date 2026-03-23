@@ -15,7 +15,7 @@ public class ModuleCatalogRepository {
      * 返回项目当前公开给前端展示的模块名称。
      */
     public List<String> findAllModuleNames() {
-        return Arrays.asList("testy-repository", "testy-service", "testy-document", "Spring-boot-test");
+        return Arrays.asList("testy-logging", "testy-repository", "testy-service", "testy-document", "Spring-boot-test");
     }
 
     /**
