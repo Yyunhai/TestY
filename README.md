@@ -1,50 +1,76 @@
-# TestY 项目说明
+# TestY
 
-TestY 是一个基于 Spring Boot 多模块后端和 Vue 3 前端的示例系统，当前已经实现认证授权、管理员能力、Markdown 文档管理，以及登录审计和操作日志能力。
-
-## 项目目标
-
-这个项目的重点不是单页展示，而是提供一套可以继续扩展的业务底座，适合作为以下类型系统的起点：
-
-- 后台管理系统
-- 内部协作平台
-- 知识库或文档系统
-- 带权限控制的内容管理系统
+TestY 是一个基于 `Spring Boot 2.7 + Vue 3` 的多模块示例项目，包含统一认证、Markdown 文档管理、后台管理、登录审计和操作日志能力。项目采用前后端分离开发方式，前端构建产物可直接输出到后端静态目录中，便于本地开发和一体化部署。
 
 ## 功能概览
 
-- 用户注册会同时写入账户表、资料表和默认角色关系。
-- 用户登录支持用户名或邮箱，并记录登录 IP、时间、User-Agent、角色快照和权限快照。
-- 系统内置 `USER` 和 `ROOT` 两个角色。
-- 管理员可以查看用户、角色、权限、登录审计和操作日志。
-- 普通用户可以查看项目概览，并创建、编辑、删除、恢复自己的 Markdown 文档。
-- 系统会对关键写操作记录操作日志，例如注册、重置密码、退出登录、文档创建/更新/删除/恢复，以及管理员修改角色和用户状态。
+- 统一认证
+  - 注册、登录、登出、重置密码
+  - 基于 `HttpSession` 的会话认证，不使用 JWT
+  - 登录记录包含时间、IP、角色快照、权限快照
+- 文档中心
+  - Markdown 文档的创建、编辑、删除、版本恢复
+  - 文档列表支持搜索，搜索条件保存在 URL hash 中
+  - 自动保存与实时预览
+- 后台管理
+  - 用户管理、角色管理、权限目录
+  - 登录审计查询
+  - 操作日志查询
+  - 普通 `USER` 账号不会显示后台管理入口
+- 日志能力
+  - 独立日志模块 `testy-logging`
+  - 应用日志、登录安全日志、操作日志、错误日志分别落盘
+  - 支持日志定期清理
+- 前端体验
+  - 登录页自动记住上次输入的用户名
+  - 可选“记住密码”
 
-## 模块结构
+## 技术栈
 
-- `testy-repository`
-  持久化层，包含 JPA 实体和仓储接口。
-- `testy-logging`
-  日志模块，负责统一日志输出格式、文件落盘和日志目录配置。
-- `testy-service`
-  核心业务层，包含认证、权限、管理员、日志等服务。
-- `testy-document`
-  Markdown 文档相关服务和只读视图对象。
-- `Spring-boot-test`
-  启动模块，包含控制器、配置、异常处理和集成测试。
-- `web`
-  Vue 3 前端项目。
+- 后端
+  - Java 8
+  - Spring Boot 2.7.0
+  - Spring MVC
+  - Spring Data JPA
+  - MySQL 8
+- 前端
+  - Vue 3
+  - Vue CLI 5
+  - `markdown-it`
+  - `highlight.js`
+- 构建与部署
+  - Maven 多模块
+  - Docker / Docker Compose
 
-## 认证与权限设计
+## 项目结构
 
-系统使用基于 Session 的登录态，不使用 JWT。登录成功后，后端会把当前用户快照写入 `HttpSession`，并通过拦截器统一保护 `/api/**` 路径下的接口。
+```text
+TestY
+├─ Spring-boot-test      # 启动模块，控制器、配置、异常处理、集成测试
+├─ testy-document        # 文档领域服务
+├─ testy-logging         # 日志模块，文件输出与清理任务
+├─ testy-repository      # JPA 实体与 Repository
+├─ testy-service         # 认证、管理员、日志等核心业务服务
+├─ web                   # Vue 3 前端
+├─ Dockerfile
+├─ docker-compose.yml
+└─ pom.xml               # 父工程
+```
 
-当前内置权限包括：
+## 内置角色与权限
 
-- `overview:read`
-- `profile:read`
-- `docs:read`
-- `docs:write`
+系统默认初始化两个内置角色：
+
+- `USER`
+  - `overview:read`
+  - `profile:read`
+  - `docs:read`
+  - `docs:write`
+- `ROOT`
+  - 拥有系统全部权限
+
+后台相关权限包括：
+
 - `admin:users:read`
 - `admin:users:write`
 - `admin:roles:read`
@@ -54,96 +80,75 @@ TestY 是一个基于 Spring Boot 多模块后端和 Vue 3 前端的示例系统
 - `admin:operation-logs:read`
 - `system:manage`
 
-## 数据表说明
+说明：
 
-核心表如下：
+- 没有任何 `admin:*` 权限的账号，前端不会显示“后台管理”按钮。
+- 默认注册用户会获得 `USER` 角色，不会自动获得后台管理能力。
 
-- `user_account`
-  账户主表，保存用户名、邮箱、密码摘要、状态和最近登录信息。
-- `user_profile`
-  用户资料表，保存显示名和手机号。
-- `system_role`
-  系统角色表。
-- `system_permission`
-  系统权限表。
-- `user_role`
-  用户和角色关系表。
-- `role_permission`
-  角色和权限关系表。
-- `login_audit`
-  登录审计表。
-- `operation_log`
-  操作日志表。
-- `markdown_document`
-  Markdown 文档表。
-- `markdown_document_version`
-  Markdown 文档版本表。
+## 默认管理员账号
 
-## 日志功能
+应用启动时会自动初始化 root 管理员账号，默认值如下：
 
-项目当前包含两类日志：
+- 用户名：`rootadmin`
+- 邮箱：`root@testy.local`
+- 密码：`Root@123456`
 
-- 登录审计
-  用于记录每次登录尝试，包含登录主体、IP、User-Agent、成功状态、角色快照和权限快照。
-- 操作日志
-  用于记录关键业务操作，包含操作者、模块、动作、目标对象、结果、说明和发生时间。
+可通过环境变量覆盖：
 
-同时，运行日志会通过 `testy-logging` 模块写入项目根目录下的 `logs/` 文件夹，默认拆分为：
+- `TESTY_ROOT_USERNAME`
+- `TESTY_ROOT_EMAIL`
+- `TESTY_ROOT_PASSWORD`
+
+## 日志说明
+
+日志统一由 `testy-logging` 模块管理，默认输出到项目根目录下的 `logs/`。
+
+默认日志文件：
 
 - `logs/application.log`
 - `logs/security.log`
 - `logs/operation.log`
 - `logs/error.log`
 
-日志模块还包含定期清理任务，默认每天执行一次，删除超过 14 天的历史日志文件。可通过以下环境变量调整：
+日志清理相关环境变量：
 
+- `TESTY_LOG_PATH`
 - `TESTY_LOG_CLEANUP_ENABLED`
 - `TESTY_LOG_RETENTION_DAYS`
 - `TESTY_LOG_CLEANUP_INITIAL_DELAY_MS`
 - `TESTY_LOG_CLEANUP_INTERVAL_MS`
 
-当前会记录的典型操作包括：
+默认策略：
 
-- 用户注册
-- 密码重置
-- 退出登录
-- 文档创建
-- 文档更新
-- 文档删除
-- 文档版本恢复
-- 创建角色
-- 更新角色
-- 更新用户角色
-- 更新用户状态
+- 启动后延迟 5 分钟开始第一次清理
+- 之后每 24 小时清理一次
+- 默认保留 14 天日志文件
 
-## 默认管理员
-
-系统启动时会自动初始化 root 管理员账户，默认配置如下：
-
-- 用户名：`rootadmin`
-- 邮箱：`root@testy.local`
-- 密码：`Root@123456`
-
-可以通过环境变量覆盖：
-
-- `TESTY_ROOT_USERNAME`
-- `TESTY_ROOT_EMAIL`
-- `TESTY_ROOT_PASSWORD`
-
-## 本地运行要求
+## 运行环境
 
 - JDK 8
 - Maven 3.9 或兼容版本
-- Node.js 18 左右版本
+- Node.js 18 左右
 - MySQL 8.0
 
-## 后端运行方式
+## 本地运行
 
-默认配置会连接本机的 `testy_auth` 数据库，如果数据库不存在会自动创建。
+### 1. 准备数据库
 
-后端配置文件位置：
+默认后端连接：
+
+- 数据库：`testy_auth`
+- 地址：`jdbc:mysql://localhost:3306/testy_auth`
+- 用户名：`root`
+- 密码：`200612yhx`
+
+如果本地 MySQL 未启动，后端会在启动时因数据库连接失败而无法完成初始化。
+
+后端主配置文件：
 
 - `Spring-boot-test/src/main/resources/application.properties`
+
+### 2. 启动后端
 
 在项目根目录执行：
 
@@ -151,27 +156,55 @@ TestY 是一个基于 Spring Boot 多模块后端和 Vue 3 前端的示例系统
 mvn -pl Spring-boot-test -am spring-boot:run
 ```
 
-默认后端端口为 `8080`。
-默认日志目录为项目根目录下的 `logs/`，可通过环境变量 `TESTY_LOG_PATH` 覆盖。
+默认端口：
 
-## 前端运行方式
+- 后端：`8080`
 
-前端目录：
-
-- `web`
+### 3. 启动前端
 
 进入前端目录后执行：
 
 ```bash
+cd web
 npm install
 npm run serve
 ```
 
-默认前端开发端口为 `8081`，并会将 `/api` 请求代理到 `http://localhost:8080`。
+默认端口：
+
+- 前端开发服务：`8081`
+
+前端开发代理：
+
+- `/api` -> `http://localhost:8080`
+
+前端构建产物会输出到：
+
+- `Spring-boot-test/src/main/resources/static`
+
+## Docker 运行
+
+项目已提供 `Dockerfile` 和 `docker-compose.yml`。
+
+在项目根目录执行：
+
+```bash
+docker compose up --build
+```
+
+启动后默认服务：
+
+- MySQL：`3306`
+- 应用：`8080`
+
+Docker 环境下：
+
+- 应用容器会连接 `mysql:3306/testy_auth`
+- 项目根目录 `logs/` 会挂载到容器内 `/app/logs`
 
 ## 常用接口
 
-认证接口：
+### 认证接口
 
 - `POST /api/auth/register`
 - `POST /api/auth/login`
@@ -179,11 +212,21 @@ npm run serve
 - `POST /api/auth/reset-password`
 - `POST /api/auth/logout`
 
-项目概览接口：
+### 项目概览
 
 - `GET /api/overview`
 
-管理员接口：
+### 文档接口
+
+- `GET /api/docs`
+- `GET /api/docs/{id}`
+- `POST /api/docs`
+- `PUT /api/docs/{id}`
+- `DELETE /api/docs/{id}`
+- `GET /api/docs/{id}/versions`
+- `POST /api/docs/{id}/versions/{versionId}/restore`
+
+### 后台管理接口
 
 - `GET /api/admin/users`
 - `PUT /api/admin/users/{userId}/roles`
@@ -195,16 +238,6 @@ npm run serve
 - `GET /api/admin/login-audits`
 - `GET /api/admin/login-audits/alerts`
 - `GET /api/admin/operation-logs`
-
-Markdown 文档接口：
-
-- `GET /api/docs`
-- `GET /api/docs/{id}`
-- `POST /api/docs`
-- `PUT /api/docs/{id}`
-- `DELETE /api/docs/{id}`
-- `GET /api/docs/{id}/versions`
-- `POST /api/docs/{id}/versions/{versionId}/restore`
 
 ## 测试与构建
 
@@ -221,23 +254,29 @@ cd web
 npm run build
 ```
 
-## Docker 运行
+## 已实现的前端页面
 
-项目已经提供 `Dockerfile` 和 `docker-compose.yml`，可以直接进行一体化构建和启动：
+- 登录 / 注册 / 重置密码
+- 项目概览
+- 文档中心
+- 后台管理
+  - 安全态势
+  - 用户管理
+  - 角色权限
+  - 登录审计
+  - 操作日志
 
-```bash
-docker compose up --build
-```
+## 开发说明
 
-启动后：
+- 后台入口只对拥有后台权限的账号显示。
+- 文档页搜索使用 hash 保存状态，例如：`#docs?q=keyword`
+- 登录页会记住上次输入的用户名；勾选“记住密码”后会将密码保存到浏览器本地存储。
+- 当前前端主界面集中在 `web/src/App.vue`。
 
-- MySQL 暴露在 `3306`
-- 应用暴露在 `8080`
-- 应用日志保存在项目根目录 `logs/`
+## 后续可扩展方向
 
-## 后续扩展建议
-
-- 为操作日志增加时间范围、目标类型和结果状态筛选。
-- 为登录审计增加失败告警策略和通知能力。
-- 为文档模块增加标签、归档和全文检索。
-- 增加管理员前端页面，而不只保留管理员接口。
+- 后台管理拆分为独立页面和组件
+- 操作日志增加时间范围与更多筛选条件
+- 文档中心增加标签、归档和全文检索
+- 登录审计增加告警策略和通知能力
+- 增加更细粒度的测试覆盖
