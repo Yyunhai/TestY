@@ -21,6 +21,11 @@
               <span>密码</span>
               <input v-model="loginForm.password" type="password" autocomplete="current-password" />
             </label>
+            <label class="remember-row">
+              <input v-model="loginRememberPassword" type="checkbox" />
+              <span>记住密码</span>
+            </label>
+            <p class="muted auth-tips">用户名会自动记住；勾选后密码也会在本地保存并自动填充。</p>
           </template>
           <template v-else-if="authMode === 'register'">
             <label class="field">
@@ -348,6 +353,9 @@ import MarkdownIt from "markdown-it";
 import markdownItTaskLists from "markdown-it-task-lists";
 import hljs from "highlight.js";
 
+const LOGIN_USERNAME_STORAGE_KEY = "testy.login.username";
+const LOGIN_PASSWORD_STORAGE_KEY = "testy.login.password";
+
 const md = new MarkdownIt({
   html: false,
   linkify: true,
@@ -375,6 +383,7 @@ export default {
       user: emptyUser(),
       message: { type: "info", text: "" },
       loginForm: { usernameOrEmail: "", password: "" },
+      loginRememberPassword: false,
       registerForm: { username: "", email: "", password: "", displayName: "", phoneNumber: "" },
       resetForm: { username: "", email: "", newPassword: "" },
       currentPage: "dashboard",
@@ -445,10 +454,24 @@ export default {
     }
   },
   watch: {
+    "loginForm.usernameOrEmail"(value) {
+      this.persistLoginUsername(value);
+    },
+    "loginForm.password"(value) {
+      if (this.loginRememberPassword) this.persistLoginPassword(value);
+    },
+    loginRememberPassword(value) {
+      if (value) {
+        this.persistLoginPassword(this.loginForm.password);
+      } else {
+        this.removeStoredValue(LOGIN_PASSWORD_STORAGE_KEY);
+      }
+    },
     "documentForm.title"() { this.queueAutosave(); },
     "documentForm.content"() { this.queueAutosave(); }
   },
   async mounted() {
+    this.restoreLoginPreferences();
     window.addEventListener("hashchange", this.handleHashChange);
     await this.bootstrap();
   },
@@ -462,6 +485,52 @@ export default {
     hasPermission(code) { return Boolean(this.user.rootAdmin) || (this.user.permissions || []).includes(code); },
     setMessage(text, type = "info") { this.message = { text, type }; },
     clearMessage() { this.message = { text: "", type: "info" }; },
+    readStoredValue(key) {
+      try {
+        return window.localStorage.getItem(key) || "";
+      } catch (error) {
+        return "";
+      }
+    },
+    persistStoredValue(key, value) {
+      try {
+        if (!value) {
+          window.localStorage.removeItem(key);
+          return;
+        }
+        window.localStorage.setItem(key, value);
+      } catch (error) {
+        void error;
+      }
+    },
+    removeStoredValue(key) {
+      try {
+        window.localStorage.removeItem(key);
+      } catch (error) {
+        void error;
+      }
+    },
+    persistLoginUsername(value) {
+      this.persistStoredValue(LOGIN_USERNAME_STORAGE_KEY, String(value || "").trim());
+    },
+    persistLoginPassword(value) {
+      this.persistStoredValue(LOGIN_PASSWORD_STORAGE_KEY, value || "");
+    },
+    restoreLoginPreferences() {
+      const rememberedUsername = this.readStoredValue(LOGIN_USERNAME_STORAGE_KEY);
+      const rememberedPassword = this.readStoredValue(LOGIN_PASSWORD_STORAGE_KEY);
+      this.loginForm.usernameOrEmail = rememberedUsername;
+      this.loginForm.password = rememberedPassword;
+      this.loginRememberPassword = Boolean(rememberedPassword);
+    },
+    syncLoginPreferences() {
+      this.persistLoginUsername(this.loginForm.usernameOrEmail);
+      if (this.loginRememberPassword) {
+        this.persistLoginPassword(this.loginForm.password);
+      } else {
+        this.removeStoredValue(LOGIN_PASSWORD_STORAGE_KEY);
+      }
+    },
     isAuthRequiredError(error) {
       return Boolean(error && /Authentication required/i.test(error.message || ""));
     },
@@ -509,6 +578,7 @@ export default {
       try {
         if (this.authMode === "login") {
           const result = await this.apiRequest("/api/auth/login", { method: "POST", body: this.loginForm });
+          this.syncLoginPreferences();
           this.applyAuth(result);
           this.authenticated = true;
           this.syncFromHash();
@@ -516,10 +586,12 @@ export default {
           this.setMessage("登录成功。", "success");
         } else if (this.authMode === "register") {
           await this.apiRequest("/api/auth/register", { method: "POST", body: this.registerForm });
+          this.loginForm.usernameOrEmail = this.registerForm.username || this.registerForm.email || this.loginForm.usernameOrEmail;
           this.authMode = "login";
           this.setMessage("注册成功，请直接登录。", "success");
         } else {
           await this.apiRequest("/api/auth/reset-password", { method: "POST", body: this.resetForm });
+          this.loginForm.usernameOrEmail = this.resetForm.username || this.loginForm.usernameOrEmail;
           this.authMode = "login";
           this.setMessage("密码重置成功，请使用新密码登录。", "success");
         }
@@ -853,6 +925,9 @@ button { cursor: pointer; }
 .field { display: grid; gap: 8px; }
 .field span { color: var(--muted); font-size: 14px; }
 .field input, .field select, .field textarea, .filters input, .filters select { width: 100%; border: 1px solid rgba(17, 24, 39, 0.12); border-radius: 16px; padding: 13px 14px; background: rgba(255, 255, 255, 0.95); color: var(--text); }
+.remember-row { display: inline-flex; align-items: center; gap: 10px; color: var(--muted); }
+.remember-row input { width: 16px; height: 16px; margin: 0; accent-color: var(--accent); }
+.auth-tips { margin: -6px 0 0; font-size: 13px; line-height: 1.6; }
 .notice { padding: 14px 16px; border-radius: 16px; border: 1px solid transparent; }
 .notice.inline { margin-top: 16px; }
 .notice.info { background: rgba(75, 118, 183, 0.12); color: #31507e; }
