@@ -228,11 +228,40 @@
 
           <div v-if="adminSection === 'overview'" class="stack">
             <div v-if="adminErrors.overview" class="notice error">{{ adminErrors.overview }}</div>
-            <div class="stats">
-              <div class="stat"><span>Users</span><strong>{{ canReadAdminUsers ? adminUsers.length : '--' }}</strong></div>
-              <div class="stat"><span>Roles</span><strong>{{ canReadAdminRoles ? adminRoles.length : '--' }}</strong></div>
-              <div class="stat"><span>Permissions</span><strong>{{ canReadAdminPermissions ? adminPermissions.length : '--' }}</strong></div>
-              <div class="stat"><span>Failed 24h</span><strong>{{ canReadAdminLogins ? auditAlerts.failedAttemptsLast24Hours : '--' }}</strong></div>
+            <div class="stats admin-stats">
+              <div class="stat"><span>用户数</span><strong>{{ canReadAdminUsers ? adminUsers.length : '--' }}</strong></div>
+              <div class="stat"><span>角色数</span><strong>{{ canReadAdminRoles ? adminRoles.length : '--' }}</strong></div>
+              <div class="stat"><span>权限数</span><strong>{{ canReadAdminPermissions ? adminPermissions.length : '--' }}</strong></div>
+              <div class="stat"><span>24 小时失败登录</span><strong>{{ canReadAdminLogins ? auditAlerts.failedAttemptsLast24Hours : '--' }}</strong></div>
+            </div>
+            <div class="admin-overview-grid">
+              <article class="card admin-card">
+                <div class="section-head">
+                  <div>
+                    <p class="eyebrow">风险提醒</p>
+                    <h3>异常登录主体</h3>
+                  </div>
+                </div>
+                <div class="stack">
+                  <article v-for="principal in latestSuspiciousPrincipals" :key="principal.principal" class="admin-inline-card">
+                    <strong>{{ principal.principal || '未知主体' }}</strong>
+                    <p class="muted">24 小时失败 {{ principal.failureCount }} 次 · 最近 IP {{ principal.latestRemoteIp || '--' }}</p>
+                  </article>
+                  <p v-if="!latestSuspiciousPrincipals.length" class="muted">当前没有高频失败登录主体。</p>
+                </div>
+              </article>
+              <article class="card admin-card">
+                <div class="section-head">
+                  <div>
+                    <p class="eyebrow">权限概览</p>
+                    <h3>当前可用后台能力</h3>
+                  </div>
+                </div>
+                <div class="chip-grid">
+                  <div v-for="permission in user.permissions.filter((item) => item.startsWith('admin:'))" :key="permission" class="module-chip">{{ permission }}</div>
+                  <p v-if="!user.permissions.filter((item) => item.startsWith('admin:')).length" class="muted">当前账号没有后台权限。</p>
+                </div>
+              </article>
             </div>
           </div>
 
@@ -242,6 +271,7 @@
               <button class="ghost" type="button" @click="changeAdminSection('overview')">退出用户管理</button>
             </div>
             <div v-if="adminErrors.users" class="notice error">{{ adminErrors.users }}</div>
+            <div v-if="!canWriteAdminUsers" class="notice info">当前账号只有用户查看权限，不能修改角色或账户状态。</div>
             <div class="filters">
               <input v-model.trim="userFilters.keyword" type="text" placeholder="搜索用户、邮箱或角色" />
               <select v-model="userFilters.status">
@@ -249,74 +279,128 @@
                 <option v-for="status in accountStatusOptions" :key="status" :value="status">{{ status }}</option>
               </select>
             </div>
-            <div class="stack">
-              <article v-for="adminUser in filteredAdminUsers" :key="adminUser.id" class="card">
+            <div class="admin-card-list">
+              <article v-for="adminUser in filteredAdminUsers" :key="adminUser.id" class="card admin-card">
                 <div class="section-head">
                   <div>
                     <h3>{{ adminUser.displayName || adminUser.username }}</h3>
                     <p class="muted">{{ adminUser.username }} · {{ adminUser.email || '--' }}</p>
                   </div>
-                  <strong>{{ adminUser.accountStatus || 'UNKNOWN' }}</strong>
+                  <strong class="status-badge" :class="String(adminUser.accountStatus || '').toLowerCase()">{{ adminUser.accountStatus || 'UNKNOWN' }}</strong>
                 </div>
+                <div class="admin-meta">
+                  <span>最近登录：{{ formatDateTime(adminUser.lastLoginAt) }}</span>
+                  <span>IP：{{ adminUser.lastLoginIp || '--' }}</span>
+                </div>
+                <div class="chip-grid">
+                  <div v-for="roleCode in adminUser.roles || []" :key="`${adminUser.id}-role-${roleCode}`" class="module-chip">{{ roleCode }}</div>
+                  <p v-if="!(adminUser.roles || []).length" class="muted">当前没有角色。</p>
+                </div>
+                <p class="muted admin-description">当前权限：{{ (adminUser.permissions || []).join(', ') || '暂无权限' }}</p>
                 <div class="two-col">
                   <label class="field">
                     <span>角色分配</span>
-                    <select v-model="userRoleSelections[adminUser.id]" multiple size="4">
+                    <select v-model="userRoleSelections[adminUser.id]" multiple size="4" :disabled="!canWriteAdminUsers || !canReadAdminRoles">
                       <option v-for="role in adminRoles" :key="role.id" :value="role.id">{{ role.name }} ({{ role.code }})</option>
                     </select>
                   </label>
                   <label class="field">
                     <span>账户状态</span>
-                    <select v-model="userStatusSelections[adminUser.id]">
+                    <select v-model="userStatusSelections[adminUser.id]" :disabled="!canWriteAdminUsers">
                       <option v-for="status in accountStatusOptions" :key="status" :value="status">{{ status }}</option>
                     </select>
                   </label>
                 </div>
                 <div class="button-row">
-                  <button class="ghost" type="button" @click="saveUserRoles(adminUser)">保存角色</button>
-                  <button class="ghost" type="button" @click="saveUserStatus(adminUser)">保存状态</button>
+                  <button class="ghost" type="button" :disabled="!canWriteAdminUsers || !canReadAdminRoles" @click="saveUserRoles(adminUser)">保存角色</button>
+                  <button class="ghost" type="button" :disabled="!canWriteAdminUsers" @click="saveUserStatus(adminUser)">保存状态</button>
                 </div>
               </article>
+              <p v-if="!filteredAdminUsers.length" class="muted empty-state">没有符合筛选条件的用户。</p>
             </div>
           </div>
-          <div v-else-if="adminSection === 'roles'" class="two-col">
-            <section class="stack">
+          <div v-else-if="adminSection === 'roles'" class="admin-two-col">
+            <section class="stack" v-if="canReadAdminRoles">
               <div v-if="adminErrors.roles" class="notice error">{{ adminErrors.roles }}</div>
-              <article v-for="role in adminRoles" :key="role.id" class="card">
+              <article v-for="role in adminRoles" :key="role.id" class="card admin-card">
                 <div class="section-head">
                   <div>
                     <h3>{{ role.name }}</h3>
                     <p class="muted">{{ role.code }}</p>
                   </div>
-                  <button class="ghost" type="button" :disabled="role.code === 'ROOT'" @click="editRole(role)">编辑</button>
+                  <button class="ghost" type="button" :disabled="role.builtIn || !canWriteAdminRoles || !canReadAdminPermissions" @click="editRole(role)">编辑</button>
                 </div>
-                <p class="muted">{{ role.description || '暂无描述' }}</p>
-                <p class="muted">{{ (role.permissions || []).join(', ') || '暂无权限' }}</p>
+                <p class="muted admin-description">{{ role.description || '暂无描述' }}</p>
+                <div class="chip-grid">
+                  <div v-for="permissionCode in role.permissions || []" :key="`${role.id}-${permissionCode}`" class="module-chip">{{ permissionCode }}</div>
+                  <p v-if="!(role.permissions || []).length" class="muted">暂无权限。</p>
+                </div>
               </article>
+              <p v-if="!adminRoles.length" class="muted empty-state">暂无可展示的角色。</p>
             </section>
-            <section class="card page">
-              <div class="section-head">
-                <h3>{{ roleForm.id ? '编辑角色' : '新建角色' }}</h3>
-                <button class="ghost" type="button" @click="resetRoleForm">清空表单</button>
-              </div>
-              <form class="stack" @submit.prevent="submitRoleForm">
-                <label class="field"><span>角色编码</span><input v-model.trim="roleForm.code" type="text" :disabled="Boolean(roleForm.id)" /></label>
-                <label class="field"><span>角色名称</span><input v-model.trim="roleForm.name" type="text" /></label>
-                <label class="field"><span>角色描述</span><textarea v-model.trim="roleForm.description" rows="4"></textarea></label>
-                <label class="field"><span>权限筛选</span><input v-model.trim="permissionKeyword" type="text" placeholder="按编码或名称筛选权限" /></label>
-                <div class="permission-grid">
-                  <label v-for="permission in filteredPermissions" :key="permission.id" class="permission-item">
-                    <input v-model="roleForm.permissionIds" type="checkbox" :value="permission.id" />
-                    <span>{{ permission.code }}</span>
-                  </label>
+            <section class="stack">
+              <article v-if="canWriteAdminRoles && canReadAdminPermissions" class="card page">
+                <div class="section-head">
+                  <h3>{{ roleForm.id ? '编辑角色' : '新建角色' }}</h3>
+                  <button class="ghost" type="button" @click="resetRoleForm">清空表单</button>
                 </div>
-                <button class="primary-button" type="submit">{{ roleForm.id ? '保存角色' : '创建角色' }}</button>
-              </form>
+                <form class="stack" @submit.prevent="submitRoleForm">
+                  <label class="field"><span>角色编码</span><input v-model.trim="roleForm.code" type="text" :disabled="Boolean(roleForm.id)" /></label>
+                  <label class="field"><span>角色名称</span><input v-model.trim="roleForm.name" type="text" /></label>
+                  <label class="field"><span>角色描述</span><textarea v-model.trim="roleForm.description" rows="4"></textarea></label>
+                  <label class="field"><span>权限筛选</span><input v-model.trim="permissionKeyword" type="text" placeholder="按编码或名称筛选权限" /></label>
+                  <div class="permission-grid">
+                    <label v-for="permission in filteredPermissions" :key="permission.id" class="permission-item">
+                      <input v-model="roleForm.permissionIds" type="checkbox" :value="permission.id" />
+                      <span>{{ permission.code }}</span>
+                    </label>
+                  </div>
+                  <button class="primary-button" type="submit">{{ roleForm.id ? '保存角色' : '创建角色' }}</button>
+                </form>
+              </article>
+              <article v-else-if="canReadAdminRoles" class="card page">
+                <h3>角色编辑</h3>
+                <p class="muted">当前账号没有角色写入权限，暂时只能查看角色信息。</p>
+              </article>
+              <article v-if="canReadAdminPermissions" class="card page scroll-card">
+                <div class="section-head">
+                  <div>
+                    <p class="eyebrow">权限目录</p>
+                    <h3>系统权限列表</h3>
+                  </div>
+                  <span class="muted">{{ adminPermissions.length }} 项</span>
+                </div>
+                <div class="stack">
+                  <article v-for="permission in filteredPermissions" :key="permission.id" class="admin-inline-card">
+                    <strong>{{ permission.code }}</strong>
+                    <p class="muted">{{ permission.name || '未命名权限' }}</p>
+                    <p class="muted">{{ permission.description || '暂无描述' }}</p>
+                  </article>
+                  <p v-if="!filteredPermissions.length" class="muted">没有匹配的权限。</p>
+                </div>
+              </article>
             </section>
           </div>
 
           <div v-else-if="adminSection === 'audits'" class="stack">
             <div v-if="adminErrors.audits" class="notice error">{{ adminErrors.audits }}</div>
+            <div class="admin-overview-grid">
+              <article class="card admin-card">
+                <div class="section-head">
+                  <div>
+                    <p class="eyebrow">告警总览</p>
+                    <h3>异常登录提醒</h3>
+                  </div>
+                </div>
+                <div class="stack">
+                  <article v-for="principal in latestSuspiciousPrincipals" :key="`audit-${principal.principal}`" class="admin-inline-card">
+                    <strong>{{ principal.principal || '未知主体' }}</strong>
+                    <p class="muted">24 小时失败 {{ principal.failureCount }} 次 · 最近时间 {{ formatDateTime(principal.latestFailureAt) }}</p>
+                  </article>
+                  <p v-if="!latestSuspiciousPrincipals.length" class="muted">当前没有异常登录告警。</p>
+                </div>
+              </article>
+            </div>
             <div class="filters filters-wide">
               <input v-model.trim="auditFilters.principal" type="text" placeholder="登录主体" />
               <select v-model="auditFilters.success">
@@ -335,20 +419,64 @@
               <button class="ghost" type="button" @click="loadAudits(0)">应用筛选</button>
               <button class="ghost" type="button" @click="resetAuditFilters">重置筛选</button>
             </div>
-            <article v-for="audit in auditPage.content" :key="audit.id" class="card">
+            <article v-for="audit in auditPage.content" :key="audit.id" class="card admin-card">
               <div class="section-head">
                 <div>
                   <h3>{{ audit.principal || '未知主体' }}</h3>
                   <p class="muted">{{ formatDateTime(audit.loggedInAt) }} · {{ audit.remoteIp || '--' }}</p>
                 </div>
-                <strong>{{ audit.success ? '登录成功' : '登录失败' }}</strong>
+                <strong class="status-badge" :class="audit.success ? 'active' : 'disabled'">{{ audit.success ? '登录成功' : '登录失败' }}</strong>
               </div>
               <p class="muted">{{ audit.message || '无附加信息' }}</p>
+              <p class="muted">角色快照：{{ (audit.roles || []).join(', ') || '无' }}</p>
+              <p class="muted">权限快照：{{ (audit.permissions || []).join(', ') || '无' }}</p>
             </article>
+            <p v-if="!auditPage.content.length" class="muted">没有符合筛选条件的登录审计记录。</p>
             <div class="button-row">
               <button class="ghost" type="button" :disabled="auditPage.number <= 0" @click="loadAudits(auditPage.number - 1)">上一页</button>
               <span class="muted">第 {{ (auditPage.number || 0) + 1 }} / {{ auditPage.totalPages || 1 }} 页</span>
               <button class="ghost" type="button" :disabled="(auditPage.number || 0) + 1 >= (auditPage.totalPages || 1)" @click="loadAudits((auditPage.number || 0) + 1)">下一页</button>
+            </div>
+          </div>
+
+          <div v-else-if="adminSection === 'operations'" class="stack">
+            <div v-if="adminErrors.operations" class="notice error">{{ adminErrors.operations }}</div>
+            <div class="filters filters-wide">
+              <input v-model.trim="operationFilters.module" type="text" placeholder="模块编码，如 ADMIN" />
+              <input v-model.trim="operationFilters.action" type="text" placeholder="动作编码，如 ROLE_CREATED" />
+              <input v-model.trim="operationFilters.operatorUsername" type="text" placeholder="操作者用户名" />
+              <select v-model="operationFilters.success">
+                <option value="">全部结果</option>
+                <option value="true">成功</option>
+                <option value="false">失败</option>
+              </select>
+              <select v-model.number="operationFilters.size">
+                <option :value="10">10</option>
+                <option :value="20">20</option>
+                <option :value="50">50</option>
+              </select>
+            </div>
+            <div class="button-row">
+              <button class="ghost" type="button" @click="loadOperationLogs(0)">应用筛选</button>
+              <button class="ghost" type="button" @click="resetOperationFilters">重置筛选</button>
+            </div>
+            <article v-for="log in adminOperationPage.content" :key="log.id" class="card admin-card">
+              <div class="section-head">
+                <div>
+                  <h3>{{ log.action || 'UNKNOWN_ACTION' }}</h3>
+                  <p class="muted">{{ formatDateTime(log.occurredAt) }} · 模块 {{ log.module || '--' }} · 操作者 {{ log.operatorUsername || '--' }}</p>
+                </div>
+                <strong class="status-badge" :class="log.success ? 'active' : 'disabled'">{{ log.success ? '执行成功' : '执行失败' }}</strong>
+              </div>
+              <p class="muted">目标：{{ log.targetType || '--' }} / {{ log.targetId || '--' }} · IP：{{ log.remoteIp || '--' }}</p>
+              <p>{{ log.message || '无描述' }}</p>
+              <p v-if="log.detail" class="muted">详情：{{ log.detail }}</p>
+            </article>
+            <p v-if="!adminOperationPage.content.length" class="muted">没有符合筛选条件的操作日志。</p>
+            <div class="button-row">
+              <button class="ghost" type="button" :disabled="adminOperationPage.number <= 0" @click="loadOperationLogs(adminOperationPage.number - 1)">上一页</button>
+              <span class="muted">第 {{ (adminOperationPage.number || 0) + 1 }} / {{ adminOperationPage.totalPages || 1 }} 页</span>
+              <button class="ghost" type="button" :disabled="(adminOperationPage.number || 0) + 1 >= (adminOperationPage.totalPages || 1)" @click="loadOperationLogs((adminOperationPage.number || 0) + 1)">下一页</button>
             </div>
           </div>
         </section>
@@ -409,15 +537,17 @@ export default {
       adminUsers: [],
       adminRoles: [],
       adminPermissions: [],
-      adminErrors: { overview: "", users: "", roles: "", audits: "" },
+      adminErrors: { overview: "", users: "", roles: "", permissions: "", audits: "", operations: "" },
       auditAlerts: { failedAttemptsLast24Hours: 0, suspiciousPrincipals: [] },
       auditPage: emptyAuditPage(),
+      adminOperationPage: emptyAuditPage(),
       userFilters: { keyword: "", status: "" },
       userRoleSelections: {},
       userStatusSelections: {},
       roleForm: emptyRole(),
       permissionKeyword: "",
       auditFilters: { page: 0, size: 10, principal: "", success: "", remoteIp: "" },
+      operationFilters: { page: 0, size: 10, module: "", action: "", operatorUsername: "", success: "" },
       accountStatusOptions: ["ACTIVE", "LOCKED", "DISABLED"]
     };
   },
@@ -435,15 +565,28 @@ export default {
     canReadDocs() { return this.hasPermission("docs:read"); },
     canWriteDocs() { return this.hasPermission("docs:write"); },
     canReadAdminUsers() { return this.hasPermission("admin:users:read"); },
+    canWriteAdminUsers() { return this.hasPermission("admin:users:write"); },
     canReadAdminRoles() { return this.hasPermission("admin:roles:read"); },
+    canWriteAdminRoles() { return this.hasPermission("admin:roles:write"); },
     canReadAdminPermissions() { return this.hasPermission("admin:permissions:read"); },
     canReadAdminLogins() { return this.hasPermission("admin:logins:read"); },
-    canAccessAdmin() { return this.adminTabs.length > 0; },
+    canReadAdminOperationLogs() { return this.hasPermission("admin:operation-logs:read"); },
+    canAccessAdmin() {
+      return this.canReadAdminUsers
+        || this.canWriteAdminUsers
+        || this.canReadAdminRoles
+        || this.canWriteAdminRoles
+        || this.canReadAdminPermissions
+        || this.canReadAdminLogins
+        || this.canReadAdminOperationLogs;
+    },
     adminTabs() {
-      const tabs = [{ key: "overview", label: "安全态势" }];
+      const tabs = [];
+      if (this.canAccessAdmin) tabs.push({ key: "overview", label: "安全态势" });
       if (this.canReadAdminUsers) tabs.push({ key: "users", label: "用户管理" });
       if (this.canReadAdminRoles || this.canReadAdminPermissions) tabs.push({ key: "roles", label: "角色权限" });
       if (this.canReadAdminLogins) tabs.push({ key: "audits", label: "登录审计" });
+      if (this.canReadAdminOperationLogs) tabs.push({ key: "operations", label: "操作日志" });
       return tabs;
     },
     filteredDocuments() {
@@ -465,6 +608,9 @@ export default {
     filteredPermissions() {
       const keyword = (this.permissionKeyword || "").toLowerCase();
       return this.adminPermissions.filter((item) => !keyword || [item.code, item.name, item.description].some((value) => String(value || "").toLowerCase().includes(keyword)));
+    },
+    latestSuspiciousPrincipals() {
+      return (this.auditAlerts.suspiciousPrincipals || []).slice(0, 5);
     }
   },
   watch: {
@@ -563,7 +709,9 @@ export default {
       this.adminUsers = [];
       this.adminRoles = [];
       this.adminPermissions = [];
+      this.auditAlerts = { failedAttemptsLast24Hours: 0, suspiciousPrincipals: [] };
       this.auditPage = emptyAuditPage();
+      this.adminOperationPage = emptyAuditPage();
       this.currentPage = "dashboard";
       this.adminSection = "overview";
       this.saveHint = "已开启自动保存";
@@ -668,6 +816,12 @@ export default {
       }
     },
     async setPage(page) {
+      if (page === "admin" && !this.canAccessAdmin) {
+        this.currentPage = "dashboard";
+        this.adminSection = "overview";
+        this.updateHash();
+        return;
+      }
       this.currentPage = page;
       if (page !== "admin") this.adminSection = "overview";
       if (page !== "docs") this.documentSearchKeyword = "";
@@ -787,13 +941,16 @@ export default {
       }
     },
     async loadAdminData() {
-      this.adminErrors = { overview: "", users: "", roles: "", audits: "" };
+      this.adminErrors = { overview: "", users: "", roles: "", permissions: "", audits: "", operations: "" };
       if (this.canReadAdminRoles) await this.loadRoles();
       if (this.canReadAdminPermissions) await this.loadPermissions();
       if (this.canReadAdminUsers) await this.loadUsers();
       if (this.canReadAdminLogins) {
         await this.loadAuditAlerts();
         if (this.adminSection === "audits") await this.loadAudits(this.auditFilters.page || 0);
+      }
+      if (this.canReadAdminOperationLogs && this.adminSection === "operations") {
+        await this.loadOperationLogs(this.operationFilters.page || 0);
       }
     },
     async loadUsers() {
@@ -809,13 +966,16 @@ export default {
       catch (error) {
         if (this.isAuthRequiredError(error)) return;
         this.adminErrors.roles = error.message || "角色列表加载失败。";
+        this.adminErrors.overview = this.adminErrors.roles;
       }
     },
     async loadPermissions() {
       try { this.adminPermissions = await this.apiRequest("/api/admin/permissions"); }
       catch (error) {
         if (this.isAuthRequiredError(error)) return;
-        this.adminErrors.roles = error.message || "权限列表加载失败。";
+        this.adminErrors.permissions = error.message || "权限列表加载失败。";
+        this.adminErrors.roles = this.adminErrors.permissions;
+        this.adminErrors.overview = this.adminErrors.permissions;
       }
     },
     async loadAuditAlerts() {
@@ -841,6 +1001,24 @@ export default {
     resetAuditFilters() {
       this.auditFilters = { page: 0, size: 10, principal: "", success: "", remoteIp: "" };
       this.loadAudits(0);
+    },
+    async loadOperationLogs(page = 0) {
+      try {
+        this.operationFilters.page = Math.max(page, 0);
+        const params = new URLSearchParams({ page: String(this.operationFilters.page), size: String(this.operationFilters.size) });
+        if (this.operationFilters.module) params.set("module", this.operationFilters.module);
+        if (this.operationFilters.action) params.set("action", this.operationFilters.action);
+        if (this.operationFilters.operatorUsername) params.set("operatorUsername", this.operationFilters.operatorUsername);
+        if (this.operationFilters.success !== "") params.set("success", this.operationFilters.success);
+        this.adminOperationPage = await this.apiRequest(`/api/admin/operation-logs?${params.toString()}`);
+      } catch (error) {
+        if (this.isAuthRequiredError(error)) return;
+        this.adminErrors.operations = error.message || "操作日志加载失败。";
+      }
+    },
+    resetOperationFilters() {
+      this.operationFilters = { page: 0, size: 10, module: "", action: "", operatorUsername: "", success: "" };
+      this.loadOperationLogs(0);
     },
     hydrateUserSelections() {
       const codeToId = {};
@@ -1027,17 +1205,57 @@ button { cursor: pointer; }
 .filters-wide { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .permission-grid { max-height: 260px; overflow: auto; }
 .permission-item { display: flex; gap: 10px; align-items: center; border: 1px solid var(--line); border-radius: 14px; padding: 12px; background: rgba(255, 255, 255, 0.64); }
+.admin-overview-grid { display: grid; gap: 20px; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; }
+.admin-two-col { display: grid; gap: 20px; grid-template-columns: minmax(0, 0.95fr) minmax(320px, 1.05fr); align-items: start; }
+.admin-card-list { display: grid; gap: 16px; }
+.admin-card { padding: 20px; display: grid; gap: 14px; }
+.admin-inline-card {
+  display: grid;
+  gap: 6px;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.7);
+}
+.admin-meta { display: flex; gap: 12px; flex-wrap: wrap; color: var(--muted); font-size: 14px; }
+.admin-description { margin: 0; line-height: 1.7; }
+.chip-grid { display: flex; gap: 10px; flex-wrap: wrap; }
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 90px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(17, 24, 39, 0.1);
+  background: rgba(255, 255, 255, 0.78);
+  font-size: 13px;
+}
+.status-badge.active, .status-badge.success {
+  background: rgba(11, 122, 117, 0.14);
+  color: #0b6a64;
+  border-color: rgba(11, 122, 117, 0.22);
+}
+.status-badge.locked, .status-badge.disabled {
+  background: rgba(203, 75, 55, 0.14);
+  color: #b04031;
+  border-color: rgba(203, 75, 55, 0.22);
+}
+.scroll-card { max-height: 860px; overflow: auto; }
+.empty-state { padding: 12px 4px; }
 @media (max-width: 1200px) {
-  .dashboard-layout, .docs-layout, .docs-workbench, .two-col, .filters-wide { grid-template-columns: 1fr; }
+  .dashboard-layout, .docs-layout, .docs-workbench, .two-col, .filters-wide, .admin-overview-grid, .admin-two-col { grid-template-columns: 1fr; }
   .dashboard-hero, .dashboard-side, .dashboard-modules { grid-column: auto; }
   .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .compact-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .preview-pane .markdown-body, .editor-textarea textarea { min-height: 360px; max-height: none; }
+  .scroll-card { max-height: none; }
 }
 @media (max-width: 860px) {
   .app-shell { padding: 16px; }
   .topbar, .section-head { flex-direction: column; align-items: stretch; }
   .stats, .filters { grid-template-columns: 1fr; }
   .compact-stats { grid-template-columns: 1fr; }
+  .status-badge { width: 100%; }
 }
 </style>
