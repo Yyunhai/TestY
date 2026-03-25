@@ -138,9 +138,18 @@
               <button class="ghost" type="button" @click="loadDocuments">刷新</button>
             </div>
             <button class="primary-button" type="button" @click="startNewDocument">新建文档</button>
+            <label class="field">
+              <span>搜索文档</span>
+              <input v-model.trim="documentSearchKeyword" type="text" placeholder="按标题或摘要搜索" />
+            </label>
+            <div class="button-row">
+              <p class="muted">匹配 {{ filteredDocuments.length }} / {{ documents.length }}</p>
+              <button v-if="documentSearchKeyword" class="ghost" type="button" @click="clearDocumentSearch">清空</button>
+            </div>
             <div class="doc-list">
-              <button v-for="doc in documents" :key="doc.id" type="button" class="doc-item" :class="{ active: currentDocumentId === doc.id }" @click="openDocument(doc.id)">{{ doc.title || '未命名文档' }}</button>
-              <p v-if="!documents.length" class="muted">暂无文档。</p>
+              <button v-for="doc in filteredDocuments" :key="doc.id" type="button" class="doc-item" :class="{ active: currentDocumentId === doc.id }" @click="openDocument(doc.id)">{{ doc.title || '未命名文档' }}</button>
+              <p v-if="documents.length && !filteredDocuments.length" class="muted">没有匹配的文档。</p>
+              <p v-else-if="!documents.length" class="muted">暂无文档。</p>
             </div>
           </aside>
           <div class="docs-main">
@@ -389,6 +398,7 @@ export default {
       currentPage: "dashboard",
       overview: { applicationName: "", javaVersion: "", message: "", modules: [] },
       documents: [],
+      documentSearchKeyword: "",
       currentDocumentId: null,
       documentForm: emptyDoc(),
       documentVersions: [],
@@ -436,6 +446,10 @@ export default {
       if (this.canReadAdminLogins) tabs.push({ key: "audits", label: "登录审计" });
       return tabs;
     },
+    filteredDocuments() {
+      const keyword = (this.documentSearchKeyword || "").toLowerCase();
+      return this.documents.filter((item) => !keyword || [item.title, item.excerpt].some((value) => String(value || "").toLowerCase().includes(keyword)));
+    },
     recentDocuments() { return this.documents.slice(0, 5); },
     renderedMarkdown() { return md.render(this.documentForm.content || ""); },
     documentWordCount() { return (this.documentForm.content || "").replace(/\s+/g, "").length; },
@@ -466,6 +480,10 @@ export default {
       } else {
         this.removeStoredValue(LOGIN_PASSWORD_STORAGE_KEY);
       }
+    },
+    documentSearchKeyword() {
+      if (!this.authenticated || this.currentPage !== "docs" || !this.canReadDocs) return;
+      this.updateHash();
     },
     "documentForm.title"() { this.queueAutosave(); },
     "documentForm.content"() { this.queueAutosave(); }
@@ -538,6 +556,7 @@ export default {
       this.authenticated = false;
       this.user = emptyUser();
       this.documents = [];
+      this.documentSearchKeyword = "";
       this.currentDocumentId = null;
       this.documentForm = emptyDoc();
       this.documentVersions = [];
@@ -607,30 +626,51 @@ export default {
     },
     handleHashChange() {
       if (!this.authenticated) return;
+      const previousPage = this.currentPage;
+      const previousAdminSection = this.adminSection;
       this.syncFromHash();
-      this.loadCurrentPage();
+      if (previousPage !== this.currentPage || previousAdminSection !== this.adminSection) {
+        this.loadCurrentPage();
+      }
+    },
+    parseHash() {
+      const rawHash = (window.location.hash || "").replace(/^#/, "");
+      const [pathPart, queryPart = ""] = rawHash.split("?");
+      const [page = "", section = ""] = pathPart.split("/");
+      return { page, section, query: new URLSearchParams(queryPart) };
     },
     syncFromHash() {
-      const hash = (window.location.hash || "").replace(/^#/, "");
-      const [page, section] = hash.split("/");
+      const { page, section, query } = this.parseHash();
       if (page === "docs" && this.canReadDocs) {
         this.currentPage = "docs";
+        this.documentSearchKeyword = query.get("q") || "";
       } else if (page === "admin" && this.canAccessAdmin) {
         this.currentPage = "admin";
         this.adminSection = this.adminTabs.some((item) => item.key === section) ? section : "overview";
+        this.documentSearchKeyword = "";
       } else {
         this.currentPage = "dashboard";
         this.adminSection = "overview";
+        this.documentSearchKeyword = "";
       }
     },
     updateHash() {
-      if (this.currentPage === "dashboard") window.location.hash = "";
-      if (this.currentPage === "docs") window.location.hash = "#docs";
-      if (this.currentPage === "admin") window.location.hash = `#admin/${this.adminSection}`;
+      let nextHash = "";
+      if (this.currentPage === "docs") {
+        const params = new URLSearchParams();
+        if (this.documentSearchKeyword) params.set("q", this.documentSearchKeyword);
+        nextHash = params.toString() ? `#docs?${params.toString()}` : "#docs";
+      } else if (this.currentPage === "admin") {
+        nextHash = `#admin/${this.adminSection}`;
+      }
+      if (window.location.hash !== nextHash) {
+        window.location.hash = nextHash;
+      }
     },
     async setPage(page) {
       this.currentPage = page;
       if (page !== "admin") this.adminSection = "overview";
+      if (page !== "docs") this.documentSearchKeyword = "";
       this.updateHash();
       await this.loadCurrentPage();
     },
@@ -661,6 +701,9 @@ export default {
       } catch (error) {
         if (!this.isAuthRequiredError(error)) this.setMessage(error.message || "文档列表加载失败。", "error");
       }
+    },
+    clearDocumentSearch() {
+      this.documentSearchKeyword = "";
     },
     patchDoc(doc) {
       this.suppressAutosave = true;
