@@ -42,19 +42,23 @@ build/
 *.code-workspace
 
 ### Node / Frontend ###
-web/node_modules/
-web/dist/
-web/coverage/
-web/.cache/
-web/.eslintcache
+frontend/web/node_modules/
+frontend/web/dist/
+frontend/web/coverage/
+frontend/web/.cache/
+frontend/web/.eslintcache
 
 ### Frontend Build Output Copied To Backend ###
-Spring-boot-test/src/main/resources/static/index.html
-Spring-boot-test/src/main/resources/static/favicon.ico
-Spring-boot-test/src/main/resources/static/css/
-Spring-boot-test/src/main/resources/static/js/
-Spring-boot-test/src/main/resources/static/img/
-Spring-boot-test/src/main/resources/static/fonts/
+backend/app/src/main/resources/static/index.html
+backend/app/src/main/resources/static/favicon.ico
+backend/app/src/main/resources/static/css/
+backend/app/src/main/resources/static/js/
+backend/app/src/main/resources/static/img/
+backend/app/src/main/resources/static/fonts/
+
+### Legacy Module Runtime Output ###
+backend/app/logs/
+backend/app/logs-test/
 
 ### Environment Files ###
 .env

@@ -2,6 +2,7 @@
 .idea
 **/target
 **/node_modules
-web/dist
+frontend/web/dist
+backend/app/src/main/resources/static
 Dockerfile
 docker-compose.yml

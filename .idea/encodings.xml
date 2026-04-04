@@ -7,6 +7,11 @@
     <file url="file://$PROJECT_DIR$/YsaluD/src/main/resources" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/YsaluR/src/main/java" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/YsaluR/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/backend/app/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/backend/modules/document/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/backend/modules/logging/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/backend/modules/repository/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/backend/modules/service/src/main/java" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/sprint-boot-test/src/main/java" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/src/main/java" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/src/main/resources" charset="UTF-8" />
