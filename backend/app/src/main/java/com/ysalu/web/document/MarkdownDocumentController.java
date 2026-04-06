@@ -41,16 +41,16 @@ public class MarkdownDocumentController {
     // 返回当前用户可见的文档摘要列表。
     @GetMapping
     public List<DocumentSummary> listDocuments(HttpSession session) {
-        SessionUser sessionUser = sessionAuthorization.requirePermission(session, PermissionCodes.DOCS_READ);
-        return markdownDocumentService.listDocuments(sessionUser.getId());
+        sessionAuthorization.requirePermission(session, PermissionCodes.DOCS_READ);
+        return markdownDocumentService.listDocuments();
     }
 
     // 返回当前用户可见的文档摘要列表。
     // 返回单篇文档的完整内容。
     @GetMapping("/{documentId}")
     public DocumentDetail getDocument(@PathVariable Long documentId, HttpSession session) {
-        SessionUser sessionUser = sessionAuthorization.requirePermission(session, PermissionCodes.DOCS_READ);
-        return markdownDocumentService.getDocument(sessionUser.getId(), documentId);
+        sessionAuthorization.requirePermission(session, PermissionCodes.DOCS_READ);
+        return markdownDocumentService.getDocument(documentId);
     }
 
     // 创建新文档，并记录首次版本。
@@ -98,8 +98,8 @@ public class MarkdownDocumentController {
     // 返回文档的版本历史。
     @GetMapping("/{documentId}/versions")
     public List<DocumentVersionView> listVersions(@PathVariable Long documentId, HttpSession session) {
-        SessionUser sessionUser = sessionAuthorization.requirePermission(session, PermissionCodes.DOCS_READ);
-        return markdownDocumentService.listVersions(sessionUser.getId(), documentId);
+        sessionAuthorization.requirePermission(session, PermissionCodes.DOCS_READ);
+        return markdownDocumentService.listVersions(documentId);
     }
 
     // 创建新文档，并记录首次版本。

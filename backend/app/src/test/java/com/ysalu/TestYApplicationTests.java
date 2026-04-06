@@ -109,6 +109,57 @@ class TestYApplicationTests {
     }
 
     @Test
+    void documentsAreVisibleAcrossUsersButRemainOwnerManaged() throws Exception {
+        MockHttpSession authorSession = registerAndLogin("writer02", "writer02@example.com", "secret01");
+        MockHttpSession readerSession = registerAndLogin("reader02", "reader02@example.com", "secret01");
+
+        Map<String, String> createDocumentPayload = new HashMap<String, String>();
+        createDocumentPayload.put("title", "Shared Doc");
+        createDocumentPayload.put("content", "# Shared Content");
+
+        MvcResult createResult = mockMvc.perform(post("/api/docs?mode=MANUAL").session(authorSession)
+                        .contentType(APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(createDocumentPayload)))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        Long documentId = ((Number) readMap(createResult).get("id")).longValue();
+
+        MvcResult listResult = mockMvc.perform(get("/api/docs").session(readerSession))
+                .andExpect(status().isOk())
+                .andReturn();
+        List<Map<String, Object>> documents = readList(listResult);
+        boolean foundSharedDocument = false;
+        for (Map<String, Object> document : documents) {
+            if (((Number) document.get("id")).longValue() == documentId.longValue()
+                    && "Shared Doc".equals(document.get("title"))) {
+                foundSharedDocument = true;
+                break;
+            }
+        }
+        assertTrue(foundSharedDocument);
+
+        mockMvc.perform(get("/api/docs/" + documentId).session(readerSession))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.title").value("Shared Doc"))
+                .andExpect(jsonPath("$.content").value("# Shared Content"));
+
+        mockMvc.perform(get("/api/docs/" + documentId + "/versions").session(readerSession))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].sourceType").value("MANUAL"));
+
+        Map<String, String> updateDocumentPayload = new HashMap<String, String>();
+        updateDocumentPayload.put("title", "Shared Doc Updated");
+        updateDocumentPayload.put("content", "# Updated By Reader");
+
+        mockMvc.perform(put("/api/docs/" + documentId + "?mode=MANUAL").session(readerSession)
+                        .contentType(APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(updateDocumentPayload)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Document does not exist."));
+    }
+
+    @Test
     void authEndpointsSupportRegistrationSessionLoginResetAndAuditing() throws Exception {
         Map<String, String> registerPayload = new HashMap<String, String>();
         registerPayload.put("username", "tester02");
@@ -283,7 +334,7 @@ class TestYApplicationTests {
         Map<String, Object> createRolePayload = new HashMap<String, Object>();
         createRolePayload.put("code", "EDITOR");
         createRolePayload.put("name", "Editor");
-        createRolePayload.put("description", "Can read overview and manage personal docs");
+        createRolePayload.put("description", "Can read shared docs and manage personal docs");
         createRolePayload.put(
                 "permissionIds",
                 java.util.Arrays.asList(overviewPermissionId, docsReadPermissionId, docsWritePermissionId)

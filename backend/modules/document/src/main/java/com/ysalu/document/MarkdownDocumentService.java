@@ -8,8 +8,10 @@ import com.ysalu.repository.auth.UserAccountRepository;
 import com.ysalu.repository.document.MarkdownDocumentRepository;
 import com.ysalu.repository.document.MarkdownDocumentVersionRepository;
 import com.ysalu.service.log.OperationLogService;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -39,8 +41,8 @@ public class MarkdownDocumentService {
 
     @Transactional(readOnly = true)
     // 返回用户自己的文档摘要列表。
-    public List<DocumentSummary> listDocuments(Long ownerId) {
-        List<MarkdownDocument> documents = markdownDocumentRepository.findAllByOwner_IdOrderByUpdatedAtDesc(ownerId);
+    public List<DocumentSummary> listDocuments() {
+        List<MarkdownDocument> documents = markdownDocumentRepository.findAllByOrderByUpdatedAtDesc();
         List<DocumentSummary> result = new ArrayList<DocumentSummary>();
         for (MarkdownDocument document : documents) {
             result.add(toSummary(document));
@@ -51,8 +53,8 @@ public class MarkdownDocumentService {
 
     @Transactional(readOnly = true)
     // 读取单篇文档的完整内容。
-    public DocumentDetail getDocument(Long ownerId, Long documentId) {
-        MarkdownDocument document = markdownDocumentRepository.findByIdAndOwner_Id(documentId, ownerId)
+    public DocumentDetail getDocument(Long documentId) {
+        MarkdownDocument document = markdownDocumentRepository.findById(documentId)
                 .orElseThrow(() -> new DocumentException("Document does not exist."));
         return toDetail(document);
     }
@@ -76,6 +78,26 @@ public class MarkdownDocumentService {
                 "title=" + savedDocument.getTitle() + ", mode=" + sourceType.name()
         );
         return toDetail(savedDocument);
+    }
+
+    @Transactional
+    public DocumentDetail importDocument(Long ownerId, String originalFilename, byte[] fileBytes) {
+        if (fileBytes == null || fileBytes.length == 0) {
+            throw new DocumentException("Markdown file is empty.");
+        }
+        String resolvedFilename = normalizeImportFilename(originalFilename);
+        String content = stripUtf8Bom(new String(fileBytes, StandardCharsets.UTF_8));
+        DocumentDetail detail = createDocument(ownerId, extractTitleFromFilename(resolvedFilename), content, DocumentVersionSource.IMPORT);
+        UserAccount owner = userAccountRepository.findById(ownerId)
+                .orElseThrow(() -> new DocumentException("User account does not exist."));
+        recordOperationLog(
+                owner,
+                "DOCUMENT_IMPORTED",
+                detail.getId(),
+                "Imported markdown document.",
+                "filename=" + resolvedFilename
+        );
+        return detail;
     }
 
     @Transactional
@@ -117,8 +139,8 @@ public class MarkdownDocumentService {
 
     @Transactional(readOnly = true)
     // 返回文档的全部历史版本。
-    public List<DocumentVersionView> listVersions(Long ownerId, Long documentId) {
-        MarkdownDocument document = markdownDocumentRepository.findByIdAndOwner_Id(documentId, ownerId)
+    public List<DocumentVersionView> listVersions(Long documentId) {
+        MarkdownDocument document = markdownDocumentRepository.findById(documentId)
                 .orElseThrow(() -> new DocumentException("Document does not exist."));
         List<MarkdownDocumentVersion> versions =
                 markdownDocumentVersionRepository.findAllByDocument_IdOrderByVersionNumberDesc(document.getId());
@@ -187,6 +209,40 @@ public class MarkdownDocumentService {
             throw new DocumentException("Document content must be at most 100000 characters.");
         }
         return value;
+    }
+
+    private String normalizeImportFilename(String originalFilename) {
+        String value = originalFilename == null ? "" : originalFilename.trim();
+        if (value.isEmpty()) {
+            throw new DocumentException("Markdown file name is missing.");
+        }
+        String normalized = value.replace('\\', '/');
+        int lastSlash = normalized.lastIndexOf('/');
+        if (lastSlash >= 0) {
+            normalized = normalized.substring(lastSlash + 1);
+        }
+        String lowerCase = normalized.toLowerCase(Locale.ROOT);
+        if (!lowerCase.endsWith(".md") && !lowerCase.endsWith(".markdown")) {
+            throw new DocumentException("Only .md or .markdown files are supported.");
+        }
+        return normalized;
+    }
+
+    private String extractTitleFromFilename(String filename) {
+        int extensionIndex = filename.lastIndexOf('.');
+        String baseName = extensionIndex > 0 ? filename.substring(0, extensionIndex) : filename;
+        String normalized = baseName.replace('_', ' ').trim();
+        if (normalized.isEmpty()) {
+            throw new DocumentException("Document title is required.");
+        }
+        return normalizeTitle(normalized);
+    }
+
+    private String stripUtf8Bom(String content) {
+        if (content != null && !content.isEmpty() && content.charAt(0) == '\uFEFF') {
+            return content.substring(1);
+        }
+        return content;
     }
 
     private DocumentSummary toSummary(MarkdownDocument document) {

@@ -5,5 +5,6 @@ package com.ysalu.domain.document;
 public enum DocumentVersionSource {
     MANUAL,
     AUTOSAVE,
+    IMPORT,
     RESTORE
 }

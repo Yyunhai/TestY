@@ -69,7 +69,7 @@ public class SecurityDataInitializer implements ApplicationRunner {
         Map<String, String> permissions = new LinkedHashMap<String, String>();
         permissions.put(PermissionCodes.OVERVIEW_READ, "View project overview");
         permissions.put(PermissionCodes.PROFILE_READ, "View own profile");
-        permissions.put(PermissionCodes.DOCS_READ, "Read own markdown documents");
+        permissions.put(PermissionCodes.DOCS_READ, "Read shared markdown documents");
         permissions.put(PermissionCodes.DOCS_WRITE, "Create and update own markdown documents");
         permissions.put(PermissionCodes.ADMIN_USERS_READ, "View user accounts");
         permissions.put(PermissionCodes.ADMIN_USERS_WRITE, "Change user roles");
