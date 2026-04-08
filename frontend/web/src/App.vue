@@ -2,9 +2,7 @@
   <div class="app-shell">
     <section v-if="!authenticated" class="auth-shell">
       <div class="panel auth-panel">
-        <p class="eyebrow">TESTY</p>
         <h1 class="hero-title">{{ authTitle }}</h1>
-        <p class="auth-subtitle">统一认证、文档协作与后台管理工作台。</p>
         <div class="tab-row">
           <button type="button" :class="tabClass('login')" @click="authMode = 'login'">登录</button>
           <button type="button" :class="tabClass('register')" @click="authMode = 'register'">注册</button>
@@ -25,7 +23,6 @@
               <input v-model="loginRememberPassword" type="checkbox" />
               <span>记住密码</span>
             </label>
-            <p class="muted auth-tips">用户名会自动记住；勾选后密码也会在本地保存并自动填充。</p>
           </template>
           <template v-else-if="authMode === 'register'">
             <label class="field">
@@ -87,22 +84,6 @@
 
       <main class="main-grid">
         <section v-if="currentPage === 'dashboard'" class="dashboard-layout">
-          <article class="panel page dashboard-hero">
-            <div class="section-head">
-              <div>
-                <p class="eyebrow">项目概览</p>
-                <h2>{{ overview.applicationName || 'TestY' }}</h2>
-              </div>
-              <button class="ghost" type="button" @click="loadOverview">刷新概览</button>
-            </div>
-            <p class="hero-copy">{{ overview.message || '欢迎进入统一认证、文档协作与后台管理工作台。' }}</p>
-            <div class="stats compact-stats">
-              <div class="stat"><span>Java 版本</span><strong>{{ overview.javaVersion || '--' }}</strong></div>
-              <div class="stat"><span>文档数量</span><strong>{{ documents.length }}</strong></div>
-              <div class="stat"><span>后台权限</span><strong>{{ adminPermissionCount }}</strong></div>
-            </div>
-          </article>
-
           <article class="panel page dashboard-side">
             <div class="section-head">
               <div>
@@ -115,19 +96,6 @@
               <li v-for="doc in recentDocuments" :key="doc.id">{{ doc.title || '未命名文档' }}</li>
               <li v-if="!recentDocuments.length" class="muted">当前还没有文档。</li>
             </ul>
-          </article>
-
-          <article class="panel page dashboard-modules">
-            <div class="section-head">
-              <div>
-                <p class="eyebrow">项目模块</p>
-                <h3>后端与前端组成</h3>
-              </div>
-            </div>
-            <div class="module-grid">
-              <div v-for="module in overview.modules || []" :key="module" class="module-chip">{{ module }}</div>
-              <p v-if="!(overview.modules || []).length" class="muted">暂无模块信息。</p>
-            </div>
           </article>
         </section>
 
@@ -1134,7 +1102,7 @@ button { cursor: pointer; }
 .hero-title.compact { font-size: clamp(34px, 5vw, 56px); }
 .muted { color: var(--muted); }
 .main-grid { display: grid; gap: 20px; margin-top: 20px; }
-.dashboard-layout { display: grid; gap: 20px; grid-template-columns: 1.45fr 0.95fr; }
+.dashboard-layout { display: grid; gap: 20px; grid-template-columns: minmax(0, 1fr); }
 .stack { display: grid; gap: 16px; }
 .two-col { display: grid; gap: 16px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .button-row, .tab-row, .section-head { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
@@ -1142,13 +1110,11 @@ button { cursor: pointer; }
 .ghost, .primary-button { border: 1px solid var(--line); border-radius: 999px; padding: 11px 16px; background: rgba(255, 255, 255, 0.72); color: var(--text); }
 .ghost.active, .primary-button { background: var(--accent-soft); border-color: rgba(11, 122, 117, 0.28); }
 .ghost.danger { color: var(--danger); background: var(--danger-soft); border-color: rgba(203, 75, 55, 0.22); }
-.auth-subtitle { margin: 12px 0 0; color: var(--muted); line-height: 1.7; }
 .field { display: grid; gap: 8px; }
 .field span { color: var(--muted); font-size: 14px; }
 .field input, .field select, .field textarea, .filters input, .filters select { width: 100%; border: 1px solid rgba(17, 24, 39, 0.12); border-radius: 16px; padding: 13px 14px; background: rgba(255, 255, 255, 0.95); color: var(--text); }
 .remember-row { display: inline-flex; align-items: center; gap: 10px; color: var(--muted); }
 .remember-row input { width: 16px; height: 16px; margin: 0; accent-color: var(--accent); }
-.auth-tips { margin: -6px 0 0; font-size: 13px; line-height: 1.6; }
 .notice { padding: 14px 16px; border-radius: 16px; border: 1px solid transparent; }
 .notice.inline { margin-top: 16px; }
 .notice.info { background: rgba(75, 118, 183, 0.12); color: #31507e; }
@@ -1158,12 +1124,6 @@ button { cursor: pointer; }
 .stats { display: grid; gap: 14px; grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .stat { border: 1px solid var(--line); border-radius: 18px; padding: 16px; background: rgba(255, 255, 255, 0.62); display: grid; gap: 8px; }
 .stat span { color: var(--muted); font-size: 13px; }
-.compact-stats { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-.dashboard-hero { grid-column: 1; }
-.dashboard-side { grid-column: 2; }
-.dashboard-modules { grid-column: 1 / span 2; }
-.hero-copy { margin: 0 0 18px; max-width: 760px; color: var(--muted); line-height: 1.8; }
-.module-grid { display: flex; gap: 12px; flex-wrap: wrap; }
 .module-chip { padding: 12px 14px; border-radius: 16px; background: rgba(255, 255, 255, 0.72); border: 1px solid var(--line); }
 .plain-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
 .docs-layout { display: grid; gap: 20px; grid-template-columns: 300px minmax(0, 1fr); }
@@ -1245,9 +1205,7 @@ button { cursor: pointer; }
 .empty-state { padding: 12px 4px; }
 @media (max-width: 1200px) {
   .dashboard-layout, .docs-layout, .docs-workbench, .two-col, .filters-wide, .admin-overview-grid, .admin-two-col { grid-template-columns: 1fr; }
-  .dashboard-hero, .dashboard-side, .dashboard-modules { grid-column: auto; }
   .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .compact-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .preview-pane .markdown-body, .editor-textarea textarea { min-height: 360px; max-height: none; }
   .scroll-card { max-height: none; }
 }
@@ -1255,7 +1213,6 @@ button { cursor: pointer; }
   .app-shell { padding: 16px; }
   .topbar, .section-head { flex-direction: column; align-items: stretch; }
   .stats, .filters { grid-template-columns: 1fr; }
-  .compact-stats { grid-template-columns: 1fr; }
   .status-badge { width: 100%; }
 }
 </style>
