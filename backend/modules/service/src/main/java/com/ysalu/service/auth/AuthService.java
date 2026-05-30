@@ -85,6 +85,10 @@ public class AuthService {
         String normalizedEmail = normalizeEmail(email);
         validatePassword(rawPassword);
 
+        if ("root".equalsIgnoreCase(normalizedUsername)) {
+            throw new AuthException("该用户名不允许注册。");
+        }
+
         if (userAccountRepository.existsByUsername(normalizedUsername)) {
             throw new AuthException("Username already exists.");
         }
