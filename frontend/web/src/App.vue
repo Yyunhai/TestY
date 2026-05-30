@@ -1,455 +1,116 @@
-﻿<template>
-  <div class="app-shell">
-    <section v-if="!authenticated" class="auth-shell">
-      <div class="panel auth-panel">
-        <h1 class="hero-title">{{ authTitle }}</h1>
-        <div class="tab-row">
-          <button type="button" :class="tabClass('login')" @click="authMode = 'login'">登录</button>
-          <button type="button" :class="tabClass('register')" @click="authMode = 'register'">注册</button>
-          <button type="button" :class="tabClass('reset')" @click="authMode = 'reset'">重置密码</button>
-        </div>
-        <div v-if="message.text" class="notice" :class="message.type">{{ message.text }}</div>
-        <form class="stack" @submit.prevent="submitAuth">
-          <template v-if="authMode === 'login'">
-            <label class="field">
-              <span>用户名或邮箱</span>
-              <input v-model.trim="loginForm.usernameOrEmail" type="text" autocomplete="username" />
-            </label>
-            <label class="field">
-              <span>密码</span>
-              <input v-model="loginForm.password" type="password" autocomplete="current-password" />
-            </label>
-            <label class="remember-row">
-              <input v-model="loginRememberPassword" type="checkbox" />
-              <span>记住密码</span>
-            </label>
-          </template>
-          <template v-else-if="authMode === 'register'">
-            <label class="field">
-              <span>用户名</span>
-              <input v-model.trim="registerForm.username" type="text" autocomplete="username" />
-            </label>
-            <label class="field">
-              <span>邮箱</span>
-              <input v-model.trim="registerForm.email" type="email" autocomplete="email" />
-            </label>
-            <label class="field">
-              <span>密码</span>
-              <input v-model="registerForm.password" type="password" autocomplete="new-password" />
-            </label>
-            <label class="field">
-              <span>显示名称</span>
-              <input v-model.trim="registerForm.displayName" type="text" />
-            </label>
-            <label class="field">
-              <span>手机号</span>
-              <input v-model.trim="registerForm.phoneNumber" type="text" />
-            </label>
-          </template>
-          <template v-else>
-            <label class="field">
-              <span>用户名</span>
-              <input v-model.trim="resetForm.username" type="text" autocomplete="username" />
-            </label>
-            <label class="field">
-              <span>邮箱</span>
-              <input v-model.trim="resetForm.email" type="email" autocomplete="email" />
-            </label>
-            <label class="field">
-              <span>新密码</span>
-              <input v-model="resetForm.newPassword" type="password" autocomplete="new-password" />
-            </label>
-          </template>
-          <button class="primary-button" type="submit" :disabled="authBusy">{{ authBusy ? '处理中...' : authButton }}</button>
-        </form>
-      </div>
-    </section>
+<template>
+  <div class="app">
+    <!-- Auth Page -->
+    <AuthPage
+      v-if="!authenticated"
+      :mode="authMode"
+      :message="message"
+      :login-form="loginForm"
+      :register-form="registerForm"
+      :reset-form="resetForm"
+      :remember-password="loginRememberPassword"
+      :busy="authBusy"
+      @update:mode="authMode = $event"
+      @update:login-form="loginForm = $event"
+      @update:register-form="registerForm = $event"
+      @update:reset-form="resetForm = $event"
+      @update:remember-password="loginRememberPassword = $event"
+      @submit="submitAuth"
+    />
 
-    <section v-else class="workspace-shell">
-      <header class="panel topbar">
-        <div>
-          <p class="eyebrow">TESTY WORKSPACE</p>
-          <h1 class="hero-title compact">你好，{{ user.displayName || user.username }}</h1>
-          <p class="muted">角色：{{ (user.roles || []).join(' / ') || '--' }}<span v-if="user.lastLoginAt"> · 最近登录：{{ formatDateTime(user.lastLoginAt) }}</span></p>
-        </div>
-        <div class="button-row">
-          <button :class="navClass('dashboard')" type="button" @click="setPage('dashboard')">概览</button>
-          <button v-if="canReadDocs" :class="navClass('docs')" type="button" @click="setPage('docs')">文档</button>
-          <button v-if="canAccessAdmin" :class="navClass('admin')" type="button" @click="setPage('admin')">后台管理</button>
-          <button class="ghost danger" type="button" @click="logout">退出登录</button>
-        </div>
-      </header>
+    <!-- Workspace -->
+    <WorkspaceShell
+      v-else
+      :user="user"
+      :current-page="currentPage"
+      :admin-section="adminSection"
+      :message="message"
+      :sidebar-collapsed="sidebarCollapsed"
+      :can-read-docs="canReadDocs"
+      :can-access-admin="canAccessAdmin"
+      @navigate="setPage"
+      @logout="logout"
+      @toggle-sidebar="sidebarCollapsed = !sidebarCollapsed"
+    >
+      <!-- Dashboard -->
+      <DashboardPage
+        v-if="currentPage === 'dashboard'"
+        :user="user"
+        :documents="documents"
+        :can-read-docs="canReadDocs"
+        @navigate="setPage"
+        @open-doc="openDocumentFromDashboard"
+      />
 
-      <div v-if="message.text" class="notice inline" :class="message.type">{{ message.text }}</div>
+      <!-- Documents -->
+      <DocsPage
+        v-else-if="currentPage === 'docs' && canReadDocs"
+        :documents="documents"
+        :search-keyword="documentSearchKeyword"
+        :current-document-id="currentDocumentId"
+        :document-form="documentForm"
+        :document-versions="documentVersions"
+        :save-hint="saveHint"
+        :rendered-markdown="renderedMarkdown"
+        :document-word-count="documentWordCount"
+        @update:search-keyword="documentSearchKeyword = $event; updateHash()"
+        @update:document-form="onDocumentFormUpdate"
+        @new-document="startNewDocument"
+        @open-document="openDocument"
+        @save="saveDocument"
+        @delete-document="deleteDocument"
+        @refresh="loadDocuments"
+        @refresh-versions="loadVersions"
+        @restore-version="restoreVersion"
+      />
 
-      <main class="main-grid">
-        <section v-if="currentPage === 'dashboard'" class="dashboard-layout">
-          <article class="panel page dashboard-side">
-            <div class="section-head">
-              <div>
-                <p class="eyebrow">最近文档</p>
-                <h3>文档动态</h3>
-              </div>
-              <button v-if="canReadDocs" class="ghost" type="button" @click="setPage('docs')">进入文档页</button>
-            </div>
-            <ul class="plain-list">
-              <li v-for="doc in recentDocuments" :key="doc.id">{{ doc.title || '未命名文档' }}</li>
-              <li v-if="!recentDocuments.length" class="muted">当前还没有文档。</li>
-            </ul>
-          </article>
-        </section>
-
-        <section v-if="currentPage === 'docs' && canReadDocs" class="docs-layout">
-          <aside class="panel page sidebar">
-            <div class="section-head">
-              <h2>文档列表</h2>
-              <button class="ghost" type="button" @click="loadDocuments">刷新</button>
-            </div>
-            <button class="primary-button" type="button" @click="startNewDocument">新建文档</button>
-            <label class="field">
-              <span>搜索文档</span>
-              <input v-model.trim="documentSearchKeyword" type="text" placeholder="按标题或摘要搜索" />
-            </label>
-            <div class="button-row">
-              <p class="muted">匹配 {{ filteredDocuments.length }} / {{ documents.length }}</p>
-              <button v-if="documentSearchKeyword" class="ghost" type="button" @click="clearDocumentSearch">清空</button>
-            </div>
-            <div class="doc-list">
-              <button v-for="doc in filteredDocuments" :key="doc.id" type="button" class="doc-item" :class="{ active: currentDocumentId === doc.id }" @click="openDocument(doc.id)">{{ doc.title || '未命名文档' }}</button>
-              <p v-if="documents.length && !filteredDocuments.length" class="muted">没有匹配的文档。</p>
-              <p v-else-if="!documents.length" class="muted">暂无文档。</p>
-            </div>
-          </aside>
-          <div class="docs-main">
-            <section class="panel page docs-editor-surface">
-              <div class="section-head">
-                <div>
-                  <p class="eyebrow">Markdown 编辑器</p>
-                  <h2>{{ currentDocumentId ? '编辑文档' : '新建草稿' }}</h2>
-                </div>
-                <div class="button-row">
-                  <span class="muted">{{ saveHint }}</span>
-                  <button class="ghost" type="button" @click="saveDocument('MANUAL')">保存</button>
-                  <button class="ghost danger" type="button" @click="deleteDocument">删除</button>
-                </div>
-              </div>
-              <label class="field">
-                <span>标题</span>
-                <input ref="titleInput" v-model="documentForm.title" type="text" />
-              </label>
-
-              <div class="docs-workbench">
-                <div class="editor-pane">
-                  <label class="field editor-textarea">
-                    <span>Markdown 内容</span>
-                    <textarea
-                      v-model="documentForm.content"
-                      rows="20"
-                      placeholder="开始编写&#10;在这里输入 Markdown 内容。"
-                    ></textarea>
-                  </label>
-                  <p class="muted">字数：{{ documentWordCount }}</p>
-                </div>
-
-                <section class="preview-pane">
-                  <div class="pane-label">实时预览</div>
-                  <div class="markdown-body" v-html="renderedMarkdown"></div>
-                </section>
-              </div>
-            </section>
-
-            <section class="panel page versions-pane">
-              <div class="section-head">
-                <div>
-                  <p class="eyebrow">版本历史</p>
-                  <h2>恢复历史版本</h2>
-                </div>
-                <button class="ghost" type="button" :disabled="!currentDocumentId" @click="loadVersions">刷新</button>
-              </div>
-              <div class="version-list">
-                <article v-for="version in documentVersions" :key="version.id" class="card version-card">
-                  <div>
-                    <strong>#{{ version.versionNumber }}</strong>
-                    <p>{{ version.title || '未命名文档' }}</p>
-                    <p class="muted">{{ version.sourceType }} · {{ formatDateTime(version.createdAt) }}</p>
-                  </div>
-                  <button class="ghost" type="button" @click="restoreVersion(version.id)">恢复</button>
-                </article>
-                <p v-if="!documentVersions.length" class="muted">暂无历史版本。</p>
-              </div>
-            </section>
-          </div>
-        </section>
-
-        <section v-if="currentPage === 'admin' && canAccessAdmin" class="panel page">
-          <div class="section-head">
-            <div>
-              <p class="eyebrow">管理员后台</p>
-              <h2>后台管理</h2>
-            </div>
-            <button class="ghost" type="button" @click="loadAdminData">刷新数据</button>
-          </div>
-
-          <div class="tab-row">
-            <button v-for="tab in adminTabs" :key="tab.key" :class="tabClass(tab.key, adminSection)" type="button" @click="changeAdminSection(tab.key)">{{ tab.label }}</button>
-          </div>
-
-          <div v-if="adminSection === 'overview'" class="stack">
-            <div v-if="adminErrors.overview" class="notice error">{{ adminErrors.overview }}</div>
-            <div class="stats admin-stats">
-              <div class="stat"><span>用户数</span><strong>{{ canReadAdminUsers ? adminUsers.length : '--' }}</strong></div>
-              <div class="stat"><span>角色数</span><strong>{{ canReadAdminRoles ? adminRoles.length : '--' }}</strong></div>
-              <div class="stat"><span>权限数</span><strong>{{ canReadAdminPermissions ? adminPermissions.length : '--' }}</strong></div>
-              <div class="stat"><span>24 小时失败登录</span><strong>{{ canReadAdminLogins ? auditAlerts.failedAttemptsLast24Hours : '--' }}</strong></div>
-            </div>
-            <div class="admin-overview-grid">
-              <article class="card admin-card">
-                <div class="section-head">
-                  <div>
-                    <p class="eyebrow">风险提醒</p>
-                    <h3>异常登录主体</h3>
-                  </div>
-                </div>
-                <div class="stack">
-                  <article v-for="principal in latestSuspiciousPrincipals" :key="principal.principal" class="admin-inline-card">
-                    <strong>{{ principal.principal || '未知主体' }}</strong>
-                    <p class="muted">24 小时失败 {{ principal.failureCount }} 次 · 最近 IP {{ principal.latestRemoteIp || '--' }}</p>
-                  </article>
-                  <p v-if="!latestSuspiciousPrincipals.length" class="muted">当前没有高频失败登录主体。</p>
-                </div>
-              </article>
-              <article class="card admin-card">
-                <div class="section-head">
-                  <div>
-                    <p class="eyebrow">权限概览</p>
-                    <h3>当前可用后台能力</h3>
-                  </div>
-                </div>
-                <div class="chip-grid">
-                  <div v-for="permission in user.permissions.filter((item) => item.startsWith('admin:'))" :key="permission" class="module-chip">{{ permission }}</div>
-                  <p v-if="!user.permissions.filter((item) => item.startsWith('admin:')).length" class="muted">当前账号没有后台权限。</p>
-                </div>
-              </article>
-            </div>
-          </div>
-
-          <div v-else-if="adminSection === 'users'" class="stack">
-            <div class="section-head">
-              <h3>用户管理</h3>
-              <button class="ghost" type="button" @click="changeAdminSection('overview')">退出用户管理</button>
-            </div>
-            <div v-if="adminErrors.users" class="notice error">{{ adminErrors.users }}</div>
-            <div v-if="!canWriteAdminUsers" class="notice info">当前账号只有用户查看权限，不能修改角色或账户状态。</div>
-            <div class="filters">
-              <input v-model.trim="userFilters.keyword" type="text" placeholder="搜索用户、邮箱或角色" />
-              <select v-model="userFilters.status">
-                <option value="">全部状态</option>
-                <option v-for="status in accountStatusOptions" :key="status" :value="status">{{ status }}</option>
-              </select>
-            </div>
-            <div class="admin-card-list">
-              <article v-for="adminUser in filteredAdminUsers" :key="adminUser.id" class="card admin-card">
-                <div class="section-head">
-                  <div>
-                    <h3>{{ adminUser.displayName || adminUser.username }}</h3>
-                    <p class="muted">{{ adminUser.username }} · {{ adminUser.email || '--' }}</p>
-                  </div>
-                  <strong class="status-badge" :class="String(adminUser.accountStatus || '').toLowerCase()">{{ adminUser.accountStatus || 'UNKNOWN' }}</strong>
-                </div>
-                <div class="admin-meta">
-                  <span>最近登录：{{ formatDateTime(adminUser.lastLoginAt) }}</span>
-                  <span>IP：{{ adminUser.lastLoginIp || '--' }}</span>
-                </div>
-                <div class="chip-grid">
-                  <div v-for="roleCode in adminUser.roles || []" :key="`${adminUser.id}-role-${roleCode}`" class="module-chip">{{ roleCode }}</div>
-                  <p v-if="!(adminUser.roles || []).length" class="muted">当前没有角色。</p>
-                </div>
-                <p class="muted admin-description">当前权限：{{ (adminUser.permissions || []).join(', ') || '暂无权限' }}</p>
-                <div class="two-col">
-                  <label class="field">
-                    <span>角色分配</span>
-                    <select v-model="userRoleSelections[adminUser.id]" multiple size="4" :disabled="!canWriteAdminUsers || !canReadAdminRoles">
-                      <option v-for="role in adminRoles" :key="role.id" :value="role.id">{{ role.name }} ({{ role.code }})</option>
-                    </select>
-                  </label>
-                  <label class="field">
-                    <span>账户状态</span>
-                    <select v-model="userStatusSelections[adminUser.id]" :disabled="!canWriteAdminUsers">
-                      <option v-for="status in accountStatusOptions" :key="status" :value="status">{{ status }}</option>
-                    </select>
-                  </label>
-                </div>
-                <div class="button-row">
-                  <button class="ghost" type="button" :disabled="!canWriteAdminUsers || !canReadAdminRoles" @click="saveUserRoles(adminUser)">保存角色</button>
-                  <button class="ghost" type="button" :disabled="!canWriteAdminUsers" @click="saveUserStatus(adminUser)">保存状态</button>
-                </div>
-              </article>
-              <p v-if="!filteredAdminUsers.length" class="muted empty-state">没有符合筛选条件的用户。</p>
-            </div>
-          </div>
-          <div v-else-if="adminSection === 'roles'" class="admin-two-col">
-            <section class="stack" v-if="canReadAdminRoles">
-              <div v-if="adminErrors.roles" class="notice error">{{ adminErrors.roles }}</div>
-              <article v-for="role in adminRoles" :key="role.id" class="card admin-card">
-                <div class="section-head">
-                  <div>
-                    <h3>{{ role.name }}</h3>
-                    <p class="muted">{{ role.code }}</p>
-                  </div>
-                  <button class="ghost" type="button" :disabled="role.builtIn || !canWriteAdminRoles || !canReadAdminPermissions" @click="editRole(role)">编辑</button>
-                </div>
-                <p class="muted admin-description">{{ role.description || '暂无描述' }}</p>
-                <div class="chip-grid">
-                  <div v-for="permissionCode in role.permissions || []" :key="`${role.id}-${permissionCode}`" class="module-chip">{{ permissionCode }}</div>
-                  <p v-if="!(role.permissions || []).length" class="muted">暂无权限。</p>
-                </div>
-              </article>
-              <p v-if="!adminRoles.length" class="muted empty-state">暂无可展示的角色。</p>
-            </section>
-            <section class="stack">
-              <article v-if="canWriteAdminRoles && canReadAdminPermissions" class="card page">
-                <div class="section-head">
-                  <h3>{{ roleForm.id ? '编辑角色' : '新建角色' }}</h3>
-                  <button class="ghost" type="button" @click="resetRoleForm">清空表单</button>
-                </div>
-                <form class="stack" @submit.prevent="submitRoleForm">
-                  <label class="field"><span>角色编码</span><input v-model.trim="roleForm.code" type="text" :disabled="Boolean(roleForm.id)" /></label>
-                  <label class="field"><span>角色名称</span><input v-model.trim="roleForm.name" type="text" /></label>
-                  <label class="field"><span>角色描述</span><textarea v-model.trim="roleForm.description" rows="4"></textarea></label>
-                  <label class="field"><span>权限筛选</span><input v-model.trim="permissionKeyword" type="text" placeholder="按编码或名称筛选权限" /></label>
-                  <div class="permission-grid">
-                    <label v-for="permission in filteredPermissions" :key="permission.id" class="permission-item">
-                      <input v-model="roleForm.permissionIds" type="checkbox" :value="permission.id" />
-                      <span>{{ permission.code }}</span>
-                    </label>
-                  </div>
-                  <button class="primary-button" type="submit">{{ roleForm.id ? '保存角色' : '创建角色' }}</button>
-                </form>
-              </article>
-              <article v-else-if="canReadAdminRoles" class="card page">
-                <h3>角色编辑</h3>
-                <p class="muted">当前账号没有角色写入权限，暂时只能查看角色信息。</p>
-              </article>
-              <article v-if="canReadAdminPermissions" class="card page scroll-card">
-                <div class="section-head">
-                  <div>
-                    <p class="eyebrow">权限目录</p>
-                    <h3>系统权限列表</h3>
-                  </div>
-                  <span class="muted">{{ adminPermissions.length }} 项</span>
-                </div>
-                <div class="stack">
-                  <article v-for="permission in filteredPermissions" :key="permission.id" class="admin-inline-card">
-                    <strong>{{ permission.code }}</strong>
-                    <p class="muted">{{ permission.name || '未命名权限' }}</p>
-                    <p class="muted">{{ permission.description || '暂无描述' }}</p>
-                  </article>
-                  <p v-if="!filteredPermissions.length" class="muted">没有匹配的权限。</p>
-                </div>
-              </article>
-            </section>
-          </div>
-
-          <div v-else-if="adminSection === 'audits'" class="stack">
-            <div v-if="adminErrors.audits" class="notice error">{{ adminErrors.audits }}</div>
-            <div class="admin-overview-grid">
-              <article class="card admin-card">
-                <div class="section-head">
-                  <div>
-                    <p class="eyebrow">告警总览</p>
-                    <h3>异常登录提醒</h3>
-                  </div>
-                </div>
-                <div class="stack">
-                  <article v-for="principal in latestSuspiciousPrincipals" :key="`audit-${principal.principal}`" class="admin-inline-card">
-                    <strong>{{ principal.principal || '未知主体' }}</strong>
-                    <p class="muted">24 小时失败 {{ principal.failureCount }} 次 · 最近时间 {{ formatDateTime(principal.latestFailureAt) }}</p>
-                  </article>
-                  <p v-if="!latestSuspiciousPrincipals.length" class="muted">当前没有异常登录告警。</p>
-                </div>
-              </article>
-            </div>
-            <div class="filters filters-wide">
-              <input v-model.trim="auditFilters.principal" type="text" placeholder="登录主体" />
-              <select v-model="auditFilters.success">
-                <option value="">全部结果</option>
-                <option value="true">成功</option>
-                <option value="false">失败</option>
-              </select>
-              <input v-model.trim="auditFilters.remoteIp" type="text" placeholder="IP 地址" />
-              <select v-model.number="auditFilters.size">
-                <option :value="10">10</option>
-                <option :value="20">20</option>
-                <option :value="50">50</option>
-              </select>
-            </div>
-            <div class="button-row">
-              <button class="ghost" type="button" @click="loadAudits(0)">应用筛选</button>
-              <button class="ghost" type="button" @click="resetAuditFilters">重置筛选</button>
-            </div>
-            <article v-for="audit in auditPage.content" :key="audit.id" class="card admin-card">
-              <div class="section-head">
-                <div>
-                  <h3>{{ audit.principal || '未知主体' }}</h3>
-                  <p class="muted">{{ formatDateTime(audit.loggedInAt) }} · {{ audit.remoteIp || '--' }}</p>
-                </div>
-                <strong class="status-badge" :class="audit.success ? 'active' : 'disabled'">{{ audit.success ? '登录成功' : '登录失败' }}</strong>
-              </div>
-              <p class="muted">{{ audit.message || '无附加信息' }}</p>
-              <p class="muted">角色快照：{{ (audit.roles || []).join(', ') || '无' }}</p>
-              <p class="muted">权限快照：{{ (audit.permissions || []).join(', ') || '无' }}</p>
-            </article>
-            <p v-if="!auditPage.content.length" class="muted">没有符合筛选条件的登录审计记录。</p>
-            <div class="button-row">
-              <button class="ghost" type="button" :disabled="auditPage.number <= 0" @click="loadAudits(auditPage.number - 1)">上一页</button>
-              <span class="muted">第 {{ (auditPage.number || 0) + 1 }} / {{ auditPage.totalPages || 1 }} 页</span>
-              <button class="ghost" type="button" :disabled="(auditPage.number || 0) + 1 >= (auditPage.totalPages || 1)" @click="loadAudits((auditPage.number || 0) + 1)">下一页</button>
-            </div>
-          </div>
-
-          <div v-else-if="adminSection === 'operations'" class="stack">
-            <div v-if="adminErrors.operations" class="notice error">{{ adminErrors.operations }}</div>
-            <div class="filters filters-wide">
-              <input v-model.trim="operationFilters.module" type="text" placeholder="模块编码，如 ADMIN" />
-              <input v-model.trim="operationFilters.action" type="text" placeholder="动作编码，如 ROLE_CREATED" />
-              <input v-model.trim="operationFilters.operatorUsername" type="text" placeholder="操作者用户名" />
-              <select v-model="operationFilters.success">
-                <option value="">全部结果</option>
-                <option value="true">成功</option>
-                <option value="false">失败</option>
-              </select>
-              <select v-model.number="operationFilters.size">
-                <option :value="10">10</option>
-                <option :value="20">20</option>
-                <option :value="50">50</option>
-              </select>
-            </div>
-            <div class="button-row">
-              <button class="ghost" type="button" @click="loadOperationLogs(0)">应用筛选</button>
-              <button class="ghost" type="button" @click="resetOperationFilters">重置筛选</button>
-            </div>
-            <article v-for="log in adminOperationPage.content" :key="log.id" class="card admin-card">
-              <div class="section-head">
-                <div>
-                  <h3>{{ log.action || 'UNKNOWN_ACTION' }}</h3>
-                  <p class="muted">{{ formatDateTime(log.occurredAt) }} · 模块 {{ log.module || '--' }} · 操作者 {{ log.operatorUsername || '--' }}</p>
-                </div>
-                <strong class="status-badge" :class="log.success ? 'active' : 'disabled'">{{ log.success ? '执行成功' : '执行失败' }}</strong>
-              </div>
-              <p class="muted">目标：{{ log.targetType || '--' }} / {{ log.targetId || '--' }} · IP：{{ log.remoteIp || '--' }}</p>
-              <p>{{ log.message || '无描述' }}</p>
-              <p v-if="log.detail" class="muted">详情：{{ log.detail }}</p>
-            </article>
-            <p v-if="!adminOperationPage.content.length" class="muted">没有符合筛选条件的操作日志。</p>
-            <div class="button-row">
-              <button class="ghost" type="button" :disabled="adminOperationPage.number <= 0" @click="loadOperationLogs(adminOperationPage.number - 1)">上一页</button>
-              <span class="muted">第 {{ (adminOperationPage.number || 0) + 1 }} / {{ adminOperationPage.totalPages || 1 }} 页</span>
-              <button class="ghost" type="button" :disabled="(adminOperationPage.number || 0) + 1 >= (adminOperationPage.totalPages || 1)" @click="loadOperationLogs((adminOperationPage.number || 0) + 1)">下一页</button>
-            </div>
-          </div>
-        </section>
-      </main>
-    </section>
+      <!-- Admin -->
+      <AdminPage
+        v-else-if="currentPage === 'admin' && canAccessAdmin"
+        :section="adminSection"
+        :user="user"
+        :users="adminUsers"
+        :roles="adminRoles"
+        :permissions="adminPermissions"
+        :errors="adminErrors"
+        :audit-alerts="auditAlerts"
+        :audit-page="auditPage"
+        :operation-page="adminOperationPage"
+        :user-filters="userFilters"
+        :user-role-selections="userRoleSelections"
+        :user-status-selections="userStatusSelections"
+        :role-form="roleForm"
+        :permission-keyword="permissionKeyword"
+        :audit-filters="auditFilters"
+        :operation-filters="operationFilters"
+        :account-status-options="accountStatusOptions"
+        :can-read-users="canReadAdminUsers"
+        :can-write-users="canWriteAdminUsers"
+        :can-read-roles="canReadAdminRoles"
+        :can-write-roles="canWriteAdminRoles"
+        :can-read-permissions="canReadAdminPermissions"
+        :can-read-logins="canReadAdminLogins"
+        :can-read-operation-logs="canReadAdminOperationLogs"
+        @change-section="changeAdminSection"
+        @refresh="loadAdminData"
+        @update:user-filters="userFilters = $event"
+        @save-user-roles="saveUserRoles"
+        @save-user-status="saveUserStatus"
+        @edit-role="editRole"
+        @reset-role-form="resetRoleForm"
+        @submit-role="submitRoleForm"
+        @update:permission-keyword="permissionKeyword = $event"
+        @update:role-form="roleForm = $event"
+        @update:user-role-selections="userRoleSelections = $event"
+        @update:user-status-selections="userStatusSelections = $event"
+        @update:audit-filters="auditFilters = $event"
+        @load-audits="loadAudits"
+        @reset-audit-filters="resetAuditFilters"
+        @update:operation-filters="operationFilters = $event"
+        @load-operations="loadOperationLogs"
+        @reset-operation-filters="resetOperationFilters"
+      />
+    </WorkspaceShell>
   </div>
 </template>
 
@@ -457,6 +118,12 @@
 import MarkdownIt from "markdown-it";
 import markdownItTaskLists from "markdown-it-task-lists";
 import hljs from "highlight.js";
+
+import AuthPage from "./components/AuthPage.vue";
+import WorkspaceShell from "./components/WorkspaceShell.vue";
+import DashboardPage from "./components/DashboardPage.vue";
+import DocsPage from "./components/DocsPage.vue";
+import AdminPage from "./components/AdminPage.vue";
 
 const LOGIN_USERNAME_STORAGE_KEY = "testy.login.username";
 const LOGIN_PASSWORD_STORAGE_KEY = "testy.login.password";
@@ -480,6 +147,7 @@ const emptyAuditPage = () => ({ content: [], number: 0, totalPages: 1, totalElem
 
 export default {
   name: "AppRoot",
+  components: { AuthPage, WorkspaceShell, DashboardPage, DocsPage, AdminPage },
   data() {
     return {
       authMode: "login",
@@ -492,6 +160,7 @@ export default {
       registerForm: { username: "", email: "", password: "", displayName: "", phoneNumber: "" },
       resetForm: { username: "", email: "", newPassword: "" },
       currentPage: "dashboard",
+      sidebarCollapsed: false,
       overview: { applicationName: "", javaVersion: "", message: "", modules: [] },
       documents: [],
       documentSearchKeyword: "",
@@ -520,16 +189,6 @@ export default {
     };
   },
   computed: {
-    authTitle() {
-      if (this.authMode === "register") return "创建账号";
-      if (this.authMode === "reset") return "重置密码";
-      return "登录系统";
-    },
-    authButton() {
-      if (this.authMode === "register") return "提交注册";
-      if (this.authMode === "reset") return "重置密码";
-      return "登录";
-    },
     canReadDocs() { return this.hasPermission("docs:read"); },
     canWriteDocs() { return this.hasPermission("docs:write"); },
     canReadAdminUsers() { return this.hasPermission("admin:users:read"); },
@@ -548,38 +207,8 @@ export default {
         || this.canReadAdminLogins
         || this.canReadAdminOperationLogs;
     },
-    adminTabs() {
-      const tabs = [];
-      if (this.canAccessAdmin) tabs.push({ key: "overview", label: "安全态势" });
-      if (this.canReadAdminUsers) tabs.push({ key: "users", label: "用户管理" });
-      if (this.canReadAdminRoles || this.canReadAdminPermissions) tabs.push({ key: "roles", label: "角色权限" });
-      if (this.canReadAdminLogins) tabs.push({ key: "audits", label: "登录审计" });
-      if (this.canReadAdminOperationLogs) tabs.push({ key: "operations", label: "操作日志" });
-      return tabs;
-    },
-    filteredDocuments() {
-      const keyword = (this.documentSearchKeyword || "").toLowerCase();
-      return this.documents.filter((item) => !keyword || [item.title, item.excerpt].some((value) => String(value || "").toLowerCase().includes(keyword)));
-    },
-    recentDocuments() { return this.documents.slice(0, 5); },
     renderedMarkdown() { return md.render(this.documentForm.content || ""); },
-    documentWordCount() { return (this.documentForm.content || "").replace(/\s+/g, "").length; },
-    adminPermissionCount() { return (this.user.permissions || []).filter((item) => item.startsWith("admin:")).length; },
-    filteredAdminUsers() {
-      const keyword = (this.userFilters.keyword || "").toLowerCase();
-      const status = this.userFilters.status;
-      return this.adminUsers.filter((item) => {
-        const hit = !keyword || [item.username, item.email, item.displayName, ...(item.roles || [])].some((value) => String(value || "").toLowerCase().includes(keyword));
-        return hit && (!status || item.accountStatus === status);
-      });
-    },
-    filteredPermissions() {
-      const keyword = (this.permissionKeyword || "").toLowerCase();
-      return this.adminPermissions.filter((item) => !keyword || [item.code, item.name, item.description].some((value) => String(value || "").toLowerCase().includes(keyword)));
-    },
-    latestSuspiciousPrincipals() {
-      return (this.auditAlerts.suspiciousPrincipals || []).slice(0, 5);
-    }
+    documentWordCount() { return (this.documentForm.content || "").replace(/\s+/g, "").length; }
   },
   watch: {
     "loginForm.usernameOrEmail"(value) {
@@ -595,10 +224,6 @@ export default {
         this.removeStoredValue(LOGIN_PASSWORD_STORAGE_KEY);
       }
     },
-    documentSearchKeyword() {
-      if (!this.authenticated || this.currentPage !== "docs" || !this.canReadDocs) return;
-      this.updateHash();
-    },
     "documentForm.title"() { this.queueAutosave(); },
     "documentForm.content"() { this.queueAutosave(); }
   },
@@ -612,35 +237,27 @@ export default {
     if (this.autosaveTimer) clearTimeout(this.autosaveTimer);
   },
   methods: {
-    tabClass(key, current = this.authMode) { return ["ghost", current === key ? "active" : ""]; },
-    navClass(key) { return ["ghost", this.currentPage === key ? "active" : ""]; },
     hasPermission(code) { return Boolean(this.user.rootAdmin) || (this.user.permissions || []).includes(code); },
-    setMessage(text, type = "info") { this.message = { text, type }; },
-    clearMessage() { this.message = { text: "", type: "info" }; },
+    setMessage(text, type = "info") {
+      this.message = { text, type };
+      if (this._messageTimer) clearTimeout(this._messageTimer);
+      this._messageTimer = setTimeout(() => { this.message = { text: "", type: "info" }; }, 3000);
+    },
+    clearMessage() {
+      if (this._messageTimer) clearTimeout(this._messageTimer);
+      this.message = { text: "", type: "info" };
+    },
     readStoredValue(key) {
-      try {
-        return window.localStorage.getItem(key) || "";
-      } catch (error) {
-        return "";
-      }
+      try { return window.localStorage.getItem(key) || ""; } catch (e) { return ""; }
     },
     persistStoredValue(key, value) {
       try {
-        if (!value) {
-          window.localStorage.removeItem(key);
-          return;
-        }
+        if (!value) { window.localStorage.removeItem(key); return; }
         window.localStorage.setItem(key, value);
-      } catch (error) {
-        void error;
-      }
+      } catch (e) { void e; }
     },
     removeStoredValue(key) {
-      try {
-        window.localStorage.removeItem(key);
-      } catch (error) {
-        void error;
-      }
+      try { window.localStorage.removeItem(key); } catch (e) { void e; }
     },
     persistLoginUsername(value) {
       this.persistStoredValue(LOGIN_USERNAME_STORAGE_KEY, String(value || "").trim());
@@ -651,9 +268,9 @@ export default {
     restoreLoginPreferences() {
       const rememberedUsername = this.readStoredValue(LOGIN_USERNAME_STORAGE_KEY);
       const rememberedPassword = this.readStoredValue(LOGIN_PASSWORD_STORAGE_KEY);
+      this.loginRememberPassword = Boolean(rememberedPassword);
       this.loginForm.usernameOrEmail = rememberedUsername;
       this.loginForm.password = rememberedPassword;
-      this.loginRememberPassword = Boolean(rememberedPassword);
     },
     syncLoginPreferences() {
       this.persistLoginUsername(this.loginForm.usernameOrEmail);
@@ -722,6 +339,7 @@ export default {
         } else if (this.authMode === "register") {
           await this.apiRequest("/api/auth/register", { method: "POST", body: this.registerForm });
           this.loginForm.usernameOrEmail = this.registerForm.username || this.registerForm.email || this.loginForm.usernameOrEmail;
+          this.loginForm.password = "";
           this.authMode = "login";
           this.setMessage("注册成功，请直接登录。", "success");
         } else {
@@ -742,10 +360,10 @@ export default {
     },
     handleHashChange() {
       if (!this.authenticated) return;
-      const previousPage = this.currentPage;
-      const previousAdminSection = this.adminSection;
+      const prev = this.currentPage;
+      const prevAdmin = this.adminSection;
       this.syncFromHash();
-      if (previousPage !== this.currentPage || previousAdminSection !== this.adminSection) {
+      if (prev !== this.currentPage || prevAdmin !== this.adminSection) {
         this.loadCurrentPage();
       }
     },
@@ -762,7 +380,8 @@ export default {
         this.documentSearchKeyword = query.get("q") || "";
       } else if (page === "admin" && this.canAccessAdmin) {
         this.currentPage = "admin";
-        this.adminSection = this.adminTabs.some((item) => item.key === section) ? section : "overview";
+        const validSections = ["overview", "users", "roles", "audits", "operations"];
+        this.adminSection = validSections.includes(section) ? section : "overview";
         this.documentSearchKeyword = "";
       } else {
         this.currentPage = "dashboard";
@@ -824,27 +443,28 @@ export default {
         if (!this.isAuthRequiredError(error)) this.setMessage(error.message || "文档列表加载失败。", "error");
       }
     },
-    clearDocumentSearch() {
-      this.documentSearchKeyword = "";
-    },
-    patchDoc(doc) {
-      this.suppressAutosave = true;
-      this.documentForm = { title: doc.title || "", content: doc.content || "", createdAt: doc.createdAt || null, updatedAt: doc.updatedAt || null };
-      this.$nextTick(() => { this.suppressAutosave = false; });
+    onDocumentFormUpdate(form) {
+      this.documentForm = form;
     },
     startNewDocument(showMessage = true) {
       this.currentDocumentId = null;
       this.documentVersions = [];
-      this.patchDoc(emptyDoc());
+      this.suppressAutosave = true;
+      this.documentForm = emptyDoc();
+      this.$nextTick(() => { this.suppressAutosave = false; });
       this.saveHint = "已开启自动保存";
       if (showMessage) this.setMessage("已创建空白草稿。", "success");
-      this.$nextTick(() => this.$refs.titleInput && this.$refs.titleInput.focus());
+    },
+    openDocumentFromDashboard(docId) {
+      this.setPage("docs").then(() => this.openDocument(docId));
     },
     async openDocument(id) {
       try {
         const doc = await this.apiRequest(`/api/docs/${id}`);
         this.currentDocumentId = id;
-        this.patchDoc(doc);
+        this.suppressAutosave = true;
+        this.documentForm = { title: doc.title || "", content: doc.content || "", createdAt: doc.createdAt || null, updatedAt: doc.updatedAt || null };
+        this.$nextTick(() => { this.suppressAutosave = false; });
         await this.loadVersions();
       } catch (error) {
         if (!this.isAuthRequiredError(error)) this.setMessage(error.message || "文档加载失败。", "error");
@@ -866,7 +486,9 @@ export default {
         const method = this.currentDocumentId ? "PUT" : "POST";
         const saved = await this.apiRequest(`${path}?mode=${mode}`, { method, body: { title: this.documentForm.title, content: this.documentForm.content } });
         this.currentDocumentId = saved.id;
-        this.patchDoc(saved);
+        this.suppressAutosave = true;
+        this.documentForm = { title: saved.title || "", content: saved.content || "", createdAt: saved.createdAt || null, updatedAt: saved.updatedAt || null };
+        this.$nextTick(() => { this.suppressAutosave = false; });
         await this.loadDocuments();
         await this.loadVersions();
         this.saveHint = mode === "AUTOSAVE" ? "已自动保存" : "已保存";
@@ -881,7 +503,9 @@ export default {
       try {
         await this.apiRequest(`/api/docs/${this.currentDocumentId}`, { method: "DELETE" });
         this.currentDocumentId = null;
-        this.patchDoc(emptyDoc());
+        this.suppressAutosave = true;
+        this.documentForm = emptyDoc();
+        this.$nextTick(() => { this.suppressAutosave = false; });
         this.documentVersions = [];
         await this.loadDocuments();
         this.setMessage("文档已删除。", "success");
@@ -900,7 +524,9 @@ export default {
     async restoreVersion(versionId) {
       try {
         const restored = await this.apiRequest(`/api/docs/${this.currentDocumentId}/versions/${versionId}/restore`, { method: "POST" });
-        this.patchDoc(restored);
+        this.suppressAutosave = true;
+        this.documentForm = { title: restored.title || "", content: restored.content || "", createdAt: restored.createdAt || null, updatedAt: restored.updatedAt || null };
+        this.$nextTick(() => { this.suppressAutosave = false; });
         await this.loadDocuments();
         await this.loadVersions();
         this.setMessage("版本已恢复。", "success");
@@ -1042,14 +668,6 @@ export default {
         if (!this.isAuthRequiredError(error)) this.setMessage(error.message || "角色保存失败。", "error");
       }
     },
-    formatDateTime(value) {
-      if (!value) return "--";
-      const date = new Date(value);
-      if (Number.isNaN(date.getTime())) return value;
-      const datePart = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
-      const timePart = `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
-      return `${datePart} ${timePart}`;
-    },
     async apiRequest(url, options = {}) {
       const config = { method: options.method || "GET", credentials: "include", headers: { Accept: "application/json" } };
       if (options.body !== undefined) {
@@ -1076,143 +694,90 @@ export default {
 </script>
 
 <style>
+/* ===== Design System ===== */
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&display=swap');
+
 :root {
-  --bg: linear-gradient(135deg, #f3b38f 0%, #f6efe5 50%, #dde7e3 100%);
-  --panel: rgba(255, 251, 246, 0.9);
-  --line: rgba(17, 24, 39, 0.08);
-  --text: #1f2933;
-  --muted: #6b7280;
-  --accent: #0b7a75;
-  --accent-soft: rgba(11, 122, 117, 0.12);
-  --danger: #cb4b37;
-  --danger-soft: rgba(203, 75, 55, 0.12);
+  --bg: #f7f5f2;
+  --bg-secondary: #efece7;
+  --surface: #ffffff;
+  --border: rgba(0, 0, 0, 0.08);
+  --border-hover: rgba(0, 0, 0, 0.15);
+
+  --text: #1a1612;
+  --text-secondary: #4a4540;
+  --text-muted: #8a857e;
+  --text-light: #b5b0a8;
+
+  --accent: #c2410c;
+  --accent-hover: #a83608;
+  --accent-bg: rgba(194, 65, 12, 0.08);
+
+  --success: #3a6b4a;
+  --danger: #c2410c;
+  --danger-bg: rgba(194, 65, 12, 0.06);
+
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.02);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.06), 0 2px 4px rgba(0,0,0,0.03);
+  --shadow-lg: 0 12px 40px rgba(0,0,0,0.08), 0 4px 12px rgba(0,0,0,0.04);
 }
-* { box-sizing: border-box; }
-body { margin: 0; background: var(--bg); color: var(--text); font-family: "Microsoft YaHei", "PingFang SC", "Segoe UI", sans-serif; }
-button, input, select, textarea { font: inherit; }
-button { cursor: pointer; }
-.app-shell { min-height: 100vh; padding: 24px; }
-.auth-shell { min-height: calc(100vh - 48px); display: grid; place-items: center; }
-.workspace-shell, .auth-shell { max-width: 1800px; margin: 0 auto; }
-.panel, .card { background: var(--panel); border: 1px solid var(--line); border-radius: 24px; box-shadow: 0 24px 60px rgba(54, 40, 24, 0.12); }
-.page, .auth-panel, .topbar { padding: 24px; }
-.auth-panel { width: min(560px, 100%); }
-.eyebrow { margin: 0 0 10px; color: var(--accent); font-size: 13px; letter-spacing: 0.14em; }
-.hero-title { margin: 0; font-size: clamp(38px, 7vw, 68px); line-height: 0.95; font-family: Georgia, "Times New Roman", serif; }
-.hero-title.compact { font-size: clamp(34px, 5vw, 56px); }
-.muted { color: var(--muted); }
-.main-grid { display: grid; gap: 20px; margin-top: 20px; }
-.dashboard-layout { display: grid; gap: 20px; grid-template-columns: minmax(0, 1fr); }
-.stack { display: grid; gap: 16px; }
-.two-col { display: grid; gap: 16px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.button-row, .tab-row, .section-head { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
-.section-head { justify-content: space-between; }
-.ghost, .primary-button { border: 1px solid var(--line); border-radius: 999px; padding: 11px 16px; background: rgba(255, 255, 255, 0.72); color: var(--text); }
-.ghost.active, .primary-button { background: var(--accent-soft); border-color: rgba(11, 122, 117, 0.28); }
-.ghost.danger { color: var(--danger); background: var(--danger-soft); border-color: rgba(203, 75, 55, 0.22); }
-.field { display: grid; gap: 8px; }
-.field span { color: var(--muted); font-size: 14px; }
-.field input, .field select, .field textarea, .filters input, .filters select { width: 100%; border: 1px solid rgba(17, 24, 39, 0.12); border-radius: 16px; padding: 13px 14px; background: rgba(255, 255, 255, 0.95); color: var(--text); }
-.remember-row { display: inline-flex; align-items: center; gap: 10px; color: var(--muted); }
-.remember-row input { width: 16px; height: 16px; margin: 0; accent-color: var(--accent); }
-.notice { padding: 14px 16px; border-radius: 16px; border: 1px solid transparent; }
-.notice.inline { margin-top: 16px; }
-.notice.info { background: rgba(75, 118, 183, 0.12); color: #31507e; }
-.notice.success { background: rgba(11, 122, 117, 0.12); color: #0b6a64; }
-.notice.error { background: rgba(203, 75, 55, 0.14); color: #b04031; }
-.topbar { display: flex; justify-content: space-between; gap: 20px; align-items: center; }
-.stats { display: grid; gap: 14px; grid-template-columns: repeat(4, minmax(0, 1fr)); }
-.stat { border: 1px solid var(--line); border-radius: 18px; padding: 16px; background: rgba(255, 255, 255, 0.62); display: grid; gap: 8px; }
-.stat span { color: var(--muted); font-size: 13px; }
-.module-chip { padding: 12px 14px; border-radius: 16px; background: rgba(255, 255, 255, 0.72); border: 1px solid var(--line); }
-.plain-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
-.docs-layout { display: grid; gap: 20px; grid-template-columns: 300px minmax(0, 1fr); }
-.sidebar { display: grid; gap: 16px; align-content: start; }
-.doc-list, .version-list, .permission-grid { display: grid; gap: 12px; }
-.doc-item { width: 100%; text-align: left; border: 1px solid var(--line); border-radius: 16px; background: rgba(255, 255, 255, 0.72); padding: 13px 14px; }
-.doc-item.active { background: var(--accent-soft); border-color: rgba(11, 122, 117, 0.28); }
-.docs-main { display: grid; gap: 20px; }
-.docs-editor-surface { display: grid; gap: 18px; }
-.docs-workbench { display: grid; gap: 20px; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: stretch; }
-.editor-pane, .preview-pane, .versions-pane { height: 100%; }
-.editor-pane { display: grid; gap: 10px; }
-.editor-textarea, .editor-textarea textarea { height: 100%; }
-.editor-textarea textarea { min-height: 560px; }
-.preview-pane {
-  display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
-  gap: 10px;
-  overflow: hidden;
-}
-.pane-label {
-  color: var(--muted);
-  font-size: 14px;
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+
+body {
+  font-family: "DM Sans", -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+  background: var(--bg);
+  color: var(--text);
   line-height: 1.5;
 }
-.markdown-body { line-height: 1.75; min-height: 260px; }
-.preview-pane .markdown-body {
-  min-height: 560px;
-  max-height: 560px;
-  overflow: auto;
-  border: 1px solid var(--line);
-  border-radius: 20px;
-  background: rgba(255, 255, 255, 0.72);
+
+button { cursor: pointer; font: inherit; }
+input, select, textarea { font: inherit; }
+
+/* Markdown Body Styles */
+.markdown-body { line-height: 1.75; color: var(--text); }
+.markdown-body h1, .markdown-body h2, .markdown-body h3 { margin: 1.2em 0 0.5em; font-weight: 700; }
+.markdown-body h1 { font-size: 1.6em; }
+.markdown-body h2 { font-size: 1.35em; }
+.markdown-body h3 { font-size: 1.15em; }
+.markdown-body p { margin: 0.6em 0; }
+.markdown-body ul, .markdown-body ol { padding-left: 1.8em; margin: 0.6em 0; }
+.markdown-body li { margin: 0.3em 0; }
+.markdown-body code {
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: var(--bg-secondary);
+  font-family: "JetBrains Mono", "Fira Code", monospace;
+  font-size: 0.9em;
+}
+.markdown-body pre { margin: 1em 0; border-radius: 12px; overflow-x: auto; }
+.markdown-body pre code { padding: 0; background: none; }
+.markdown-body pre.hljs {
   padding: 18px 20px;
-}
-.markdown-body pre { overflow-x: auto; background: #1f2933; color: #f9fafb; padding: 14px; border-radius: 16px; }
-.version-card { display: flex; justify-content: space-between; gap: 12px; align-items: center; }
-.filters { display: grid; gap: 12px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.filters-wide { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-.permission-grid { max-height: 260px; overflow: auto; }
-.permission-item { display: flex; gap: 10px; align-items: center; border: 1px solid var(--line); border-radius: 14px; padding: 12px; background: rgba(255, 255, 255, 0.64); }
-.admin-overview-grid { display: grid; gap: 20px; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; }
-.admin-two-col { display: grid; gap: 20px; grid-template-columns: minmax(0, 0.95fr) minmax(320px, 1.05fr); align-items: start; }
-.admin-card-list { display: grid; gap: 16px; }
-.admin-card { padding: 20px; display: grid; gap: 14px; }
-.admin-inline-card {
-  display: grid;
-  gap: 6px;
-  padding: 14px 16px;
-  border: 1px solid var(--line);
-  border-radius: 18px;
-  background: rgba(255, 255, 255, 0.7);
-}
-.admin-meta { display: flex; gap: 12px; flex-wrap: wrap; color: var(--muted); font-size: 14px; }
-.admin-description { margin: 0; line-height: 1.7; }
-.chip-grid { display: flex; gap: 10px; flex-wrap: wrap; }
-.status-badge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 90px;
-  padding: 8px 12px;
-  border-radius: 999px;
-  border: 1px solid rgba(17, 24, 39, 0.1);
-  background: rgba(255, 255, 255, 0.78);
+  background: #faf8f5;
+  border: 1px solid var(--border);
   font-size: 13px;
+  line-height: 1.6;
 }
-.status-badge.active, .status-badge.success {
-  background: rgba(11, 122, 117, 0.14);
-  color: #0b6a64;
-  border-color: rgba(11, 122, 117, 0.22);
+.markdown-body blockquote {
+  margin: 1em 0;
+  padding: 0.5em 1em;
+  border-left: 3px solid var(--accent);
+  color: var(--text-secondary);
+  background: var(--accent-bg);
+  border-radius: 0 8px 8px 0;
 }
-.status-badge.locked, .status-badge.disabled {
-  background: rgba(203, 75, 55, 0.14);
-  color: #b04031;
-  border-color: rgba(203, 75, 55, 0.22);
-}
-.scroll-card { max-height: 860px; overflow: auto; }
-.empty-state { padding: 12px 4px; }
-@media (max-width: 1200px) {
-  .dashboard-layout, .docs-layout, .docs-workbench, .two-col, .filters-wide, .admin-overview-grid, .admin-two-col { grid-template-columns: 1fr; }
-  .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .preview-pane .markdown-body, .editor-textarea textarea { min-height: 360px; max-height: none; }
-  .scroll-card { max-height: none; }
-}
-@media (max-width: 860px) {
-  .app-shell { padding: 16px; }
-  .topbar, .section-head { flex-direction: column; align-items: stretch; }
-  .stats, .filters { grid-template-columns: 1fr; }
-  .status-badge { width: 100%; }
-}
+.markdown-body table { width: 100%; border-collapse: collapse; margin: 1em 0; }
+.markdown-body th, .markdown-body td { padding: 8px 12px; border: 1px solid var(--border); text-align: left; }
+.markdown-body th { background: var(--bg-secondary); font-weight: 600; }
+.markdown-body a { color: var(--accent); text-decoration: none; }
+.markdown-body a:hover { text-decoration: underline; }
+.markdown-body hr { border: none; border-top: 1px solid var(--border); margin: 1.5em 0; }
+.markdown-body img { max-width: 100%; border-radius: 8px; }
+.markdown-body input[type="checkbox"] { accent-color: var(--accent); margin-right: 6px; }
+
+/* App Shell */
+.app { min-height: 100vh; }
 </style>
