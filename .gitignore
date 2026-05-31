@@ -79,3 +79,6 @@ backend/app/logs-test/
 Thumbs.db
 Desktop.ini
 
+### claude ###
+.claude/
+
