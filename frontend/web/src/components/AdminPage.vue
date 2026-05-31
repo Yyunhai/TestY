@@ -69,24 +69,34 @@
     <!-- Users Section -->
     <div v-else-if="section === 'users'" class="admin-content">
       <div v-if="errors.users" class="notice error">{{ errors.users }}</div>
-      <div v-if="!canWriteUsers" class="notice info">当前账号只有用户查看权限，不能修改角色或账户状态。</div>
 
-      <div class="filter-bar">
-        <input
-          class="filter-input"
-          type="text"
-          placeholder="搜索用户、邮箱或角色..."
-          :value="userFilters.keyword"
-          @input="$emit('update:userFilters', { ...userFilters, keyword: $event.target.value })"
-        />
-        <select
-          class="filter-select"
-          :value="userFilters.status"
-          @change="$emit('update:userFilters', { ...userFilters, status: $event.target.value })"
+      <div class="section-toolbar">
+        <div class="filter-bar">
+          <input
+            class="filter-input"
+            type="text"
+            placeholder="搜索用户、邮箱或角色..."
+            :value="userFilters.keyword"
+            @input="$emit('update:userFilters', { ...userFilters, keyword: $event.target.value })"
+          />
+          <select
+            class="filter-select"
+            :value="userFilters.status"
+            @change="$emit('update:userFilters', { ...userFilters, status: $event.target.value })"
+          >
+            <option value="">全部状态</option>
+            <option v-for="s in accountStatusOptions" :key="s" :value="s">{{ s }}</option>
+          </select>
+        </div>
+        <button
+          v-if="canCreateUsers"
+          class="btn-primary"
+          type="button"
+          @click="$emit('update:showCreateUserDialog', true)"
         >
-          <option value="">全部状态</option>
-          <option v-for="s in accountStatusOptions" :key="s" :value="s">{{ s }}</option>
-        </select>
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 1V13M1 7H13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+          创建用户
+        </button>
       </div>
 
       <div class="user-list">
@@ -146,6 +156,18 @@
           <div class="card-actions">
             <button class="btn-ghost" type="button" :disabled="!canWriteUsers || !canReadRoles" @click="$emit('save-user-roles', adminUser)">保存角色</button>
             <button class="btn-ghost" type="button" :disabled="!canWriteUsers" @click="$emit('save-user-status', adminUser)">保存状态</button>
+            <button
+              v-if="canResetUserPasswords"
+              class="btn-ghost"
+              type="button"
+              @click="$emit('reset-user-password', adminUser)"
+            >重置密码</button>
+            <button
+              v-if="canDeleteUsers"
+              class="btn-ghost btn-danger"
+              type="button"
+              @click="$emit('delete-user', adminUser.id)"
+            >删除用户</button>
           </div>
         </div>
         <p v-if="!filteredUsers.length" class="empty-text">没有符合筛选条件的用户</p>
@@ -163,7 +185,15 @@
               <h3 class="card-title">{{ role.name }}</h3>
               <p class="card-subtitle">{{ role.code }}</p>
             </div>
-            <button class="btn-ghost" type="button" :disabled="role.builtIn || !canWriteRoles || !canReadPermissions" @click="$emit('edit-role', role)">编辑</button>
+            <div class="role-actions">
+              <button class="btn-ghost" type="button" :disabled="role.builtIn || !canWriteRoles || !canReadPermissions" @click="$emit('edit-role', role)">编辑</button>
+              <button
+                v-if="canDeleteRoles && !role.builtIn"
+                class="btn-ghost btn-danger"
+                type="button"
+                @click="$emit('delete-role', role.id)"
+              >删除</button>
+            </div>
           </div>
           <p class="role-desc">{{ role.description || '暂无描述' }}</p>
           <div class="chip-grid">
@@ -335,6 +365,97 @@
         <button class="btn-ghost" type="button" :disabled="(operationPage.number || 0) + 1 >= (operationPage.totalPages || 1)" @click="$emit('load-operations', (operationPage.number || 0) + 1)">下一页</button>
       </div>
     </div>
+
+    <!-- Create User Dialog -->
+    <teleport to="body">
+      <div v-if="showCreateUserDialog" class="dialog-overlay" @click.self="$emit('update:showCreateUserDialog', false)">
+        <div class="dialog">
+          <div class="dialog-header">
+            <h3 class="dialog-title">创建用户</h3>
+            <button class="dialog-close" type="button" @click="$emit('update:showCreateUserDialog', false)">
+              <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M4 4L14 14M14 4L4 14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+            </button>
+          </div>
+          <form class="dialog-body" @submit.prevent="$emit('create-user')">
+            <div class="form-group">
+              <label class="form-label">用户名 <span class="required">*</span></label>
+              <input class="form-input" type="text" minlength="6" maxlength="64" placeholder="至少6个字符" required
+                :value="createUserForm.username"
+                @input="onCreateFormChange('username', $event.target.value)" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">邮箱 <span class="required">*</span></label>
+              <input class="form-input" type="email" maxlength="128" placeholder="user@example.com" required
+                :value="createUserForm.email"
+                @input="onCreateFormChange('email', $event.target.value)" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">密码 <span class="required">*</span></label>
+              <input class="form-input" type="password" minlength="8" maxlength="128" placeholder="至少8位，含大小写字母、数字和特殊字符" required
+                :value="createUserForm.password"
+                @input="onCreateFormChange('password', $event.target.value)" />
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label">显示名</label>
+                <input class="form-input" type="text" maxlength="100" placeholder="可选"
+                  :value="createUserForm.displayName"
+                  @input="onCreateFormChange('displayName', $event.target.value)" />
+              </div>
+              <div class="form-group">
+                <label class="form-label">手机号</label>
+                <input class="form-input" type="text" maxlength="32" placeholder="可选"
+                  :value="createUserForm.phoneNumber"
+                  @input="onCreateFormChange('phoneNumber', $event.target.value)" />
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">角色分配</label>
+              <div class="permission-list">
+                <label v-for="role in roles" :key="role.id" class="perm-check">
+                  <input type="checkbox" :value="role.id"
+                    :checked="(createUserForm.roleIds || []).includes(role.id)"
+                    @change="onCreateRoleToggle(role.id)" />
+                  <span class="perm-code">{{ role.name }} ({{ role.code }})</span>
+                </label>
+              </div>
+              <p class="form-hint">不选择则默认分配 USER 角色</p>
+            </div>
+            <div class="dialog-footer">
+              <button class="btn-ghost" type="button" @click="$emit('update:showCreateUserDialog', false)">取消</button>
+              <button class="btn-primary" type="submit">创建</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </teleport>
+
+    <!-- Reset Password Dialog -->
+    <teleport to="body">
+      <div v-if="showResetPasswordDialog" class="dialog-overlay" @click.self="$emit('update:showResetPasswordDialog', false)">
+        <div class="dialog dialog-sm">
+          <div class="dialog-header">
+            <h3 class="dialog-title">重置密码</h3>
+            <button class="dialog-close" type="button" @click="$emit('update:showResetPasswordDialog', false)">
+              <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M4 4L14 14M14 4L4 14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+            </button>
+          </div>
+          <form class="dialog-body" @submit.prevent="$emit('submit-reset-password')">
+            <p class="dialog-desc">为用户 <strong>{{ resetPasswordTargetName }}</strong> 设置新密码</p>
+            <div class="form-group">
+              <label class="form-label">新密码 <span class="required">*</span></label>
+              <input class="form-input" type="password" minlength="8" maxlength="128" placeholder="至少8位，含大小写字母、数字和特殊字符" required
+                :value="resetPasswordForm.newPassword"
+                @input="$emit('update:resetPasswordForm', { ...resetPasswordForm, newPassword: $event.target.value })" />
+            </div>
+            <div class="dialog-footer">
+              <button class="btn-ghost" type="button" @click="$emit('update:showResetPasswordDialog', false)">取消</button>
+              <button class="btn-primary" type="submit">确认重置</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </teleport>
   </div>
 </template>
 
@@ -361,19 +482,31 @@ export default {
     accountStatusOptions: { type: Array, default: () => ["ACTIVE", "LOCKED", "DISABLED"] },
     canReadUsers: { type: Boolean, default: false },
     canWriteUsers: { type: Boolean, default: false },
+    canCreateUsers: { type: Boolean, default: false },
+    canDeleteUsers: { type: Boolean, default: false },
+    canResetUserPasswords: { type: Boolean, default: false },
     canReadRoles: { type: Boolean, default: false },
     canWriteRoles: { type: Boolean, default: false },
+    canDeleteRoles: { type: Boolean, default: false },
     canReadPermissions: { type: Boolean, default: false },
     canReadLogins: { type: Boolean, default: false },
-    canReadOperationLogs: { type: Boolean, default: false }
+    canReadOperationLogs: { type: Boolean, default: false },
+    createUserForm: { type: Object, default: () => ({ username: "", email: "", password: "", displayName: "", phoneNumber: "", roleIds: [] }) },
+    resetPasswordForm: { type: Object, default: () => ({ userId: null, newPassword: "" }) },
+    showCreateUserDialog: { type: Boolean, default: false },
+    showResetPasswordDialog: { type: Boolean, default: false }
   },
   emits: [
     "change-section", "refresh",
     "update:userFilters", "save-user-roles", "save-user-status",
-    "edit-role", "reset-role-form", "submit-role",
+    "create-user", "delete-user", "reset-user-password", "submit-reset-password",
+    "edit-role", "reset-role-form", "submit-role", "delete-role",
     "update:permissionKeyword", "update:roleForm",
     "update:auditFilters", "load-audits", "reset-audit-filters",
-    "update:operationFilters", "load-operations", "reset-operation-filters"
+    "update:operationFilters", "load-operations", "reset-operation-filters",
+    "update:createUserForm", "update:resetPasswordForm",
+    "update:showCreateUserDialog", "update:showResetPasswordDialog",
+    "update:userRoleSelections", "update:userStatusSelections"
   ],
   computed: {
     tabs() {
@@ -410,6 +543,12 @@ export default {
       return this.permissions.filter((item) =>
         !keyword || [item.code, item.name, item.description].some((v) => String(v || "").toLowerCase().includes(keyword))
       );
+    },
+    resetPasswordTargetName() {
+      const uid = this.resetPasswordForm.userId;
+      if (!uid) return "";
+      const u = this.users.find((item) => item.id === uid);
+      return u ? (u.displayName || u.username) : "";
     }
   },
   methods: {
@@ -446,6 +585,16 @@ export default {
     },
     onOperationFilterChange(field, value) {
       this.$emit("update:operationFilters", { ...this.operationFilters, [field]: value });
+    },
+    onCreateFormChange(field, value) {
+      this.$emit("update:createUserForm", { ...this.createUserForm, [field]: value });
+    },
+    onCreateRoleToggle(roleId) {
+      const ids = [...(this.createUserForm.roleIds || [])];
+      const idx = ids.indexOf(roleId);
+      if (idx >= 0) ids.splice(idx, 1);
+      else ids.push(roleId);
+      this.$emit("update:createUserForm", { ...this.createUserForm, roleIds: ids });
     }
   }
 };
@@ -525,6 +674,17 @@ export default {
 .admin-content {
   display: grid;
   gap: 18px;
+}
+
+/* Section Toolbar */
+.section-toolbar {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.section-toolbar .filter-bar {
+  flex: 1;
 }
 
 /* Stats */
@@ -713,6 +873,7 @@ export default {
   display: grid;
   grid-template-columns: 1fr 160px;
   gap: 10px;
+  flex: 1;
 }
 
 .filter-wide {
@@ -826,6 +987,7 @@ export default {
 .card-actions {
   display: flex;
   gap: 8px;
+  flex-wrap: wrap;
 }
 
 /* Status Badge */
@@ -888,6 +1050,11 @@ export default {
   line-height: 1.6;
 }
 
+.role-actions {
+  display: flex;
+  gap: 6px;
+}
+
 .roles-editor {
   display: grid;
   gap: 14px;
@@ -930,6 +1097,16 @@ export default {
 
 .form-textarea {
   resize: vertical;
+}
+
+.form-hint {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.required {
+  color: var(--danger);
 }
 
 .permission-list {
@@ -979,6 +1156,7 @@ export default {
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s;
+  white-space: nowrap;
 }
 
 .btn-primary:hover {
@@ -1085,6 +1263,16 @@ export default {
   cursor: not-allowed;
 }
 
+.btn-ghost.btn-danger {
+  color: var(--danger);
+  border-color: rgba(194, 65, 12, 0.25);
+}
+
+.btn-ghost.btn-danger:hover {
+  background: var(--danger-bg);
+  border-color: var(--danger);
+}
+
 /* Notices */
 .notice {
   padding: 14px 18px;
@@ -1115,6 +1303,105 @@ export default {
   border: 1px dashed var(--border);
 }
 
+/* Dialogs */
+.dialog-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(4px);
+  display: grid;
+  place-items: center;
+  z-index: 1000;
+  animation: dialogFadeIn 0.2s ease;
+}
+
+@keyframes dialogFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.dialog {
+  background: var(--surface);
+  border-radius: 20px;
+  width: 560px;
+  max-width: 92vw;
+  max-height: 85vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+  animation: dialogSlideIn 0.25s ease;
+}
+
+.dialog-sm {
+  width: 420px;
+}
+
+@keyframes dialogSlideIn {
+  from { opacity: 0; transform: translateY(16px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.dialog-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 22px 24px 0;
+}
+
+.dialog-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.dialog-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.dialog-close:hover {
+  background: var(--bg-secondary);
+  color: var(--text);
+}
+
+.dialog-body {
+  padding: 20px 24px 24px;
+  display: grid;
+  gap: 16px;
+}
+
+.dialog-desc {
+  margin: 0;
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+.dialog-desc strong {
+  color: var(--text);
+}
+
+.dialog-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding-top: 8px;
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
 @media (max-width: 1200px) {
   .stats-grid { grid-template-columns: repeat(2, 1fr); }
   .overview-grid { grid-template-columns: 1fr; }
@@ -1128,5 +1415,8 @@ export default {
   .filter-wide { grid-template-columns: 1fr; }
   .user-controls { grid-template-columns: 1fr; }
   .permission-list { grid-template-columns: 1fr; }
+  .section-toolbar { flex-direction: column; align-items: stretch; }
+  .form-row { grid-template-columns: 1fr; }
+  .dialog { width: 95vw; }
 }
 </style>

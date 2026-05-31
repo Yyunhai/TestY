@@ -86,19 +86,32 @@
         :account-status-options="accountStatusOptions"
         :can-read-users="canReadAdminUsers"
         :can-write-users="canWriteAdminUsers"
+        :can-create-users="canCreateAdminUsers"
+        :can-delete-users="canDeleteAdminUsers"
+        :can-reset-user-passwords="canResetAdminUserPasswords"
         :can-read-roles="canReadAdminRoles"
         :can-write-roles="canWriteAdminRoles"
+        :can-delete-roles="canDeleteAdminRoles"
         :can-read-permissions="canReadAdminPermissions"
         :can-read-logins="canReadAdminLogins"
         :can-read-operation-logs="canReadAdminOperationLogs"
+        :create-user-form="createUserForm"
+        :reset-password-form="resetPasswordForm"
+        :show-create-user-dialog="showCreateUserDialog"
+        :show-reset-password-dialog="showResetPasswordDialog"
         @change-section="changeAdminSection"
         @refresh="loadAdminData"
         @update:user-filters="userFilters = $event"
         @save-user-roles="saveUserRoles"
         @save-user-status="saveUserStatus"
+        @create-user="createUser"
+        @delete-user="deleteUser"
+        @reset-user-password="openResetPasswordDialog"
+        @submit-reset-password="resetUserPassword"
         @edit-role="editRole"
         @reset-role-form="resetRoleForm"
         @submit-role="submitRoleForm"
+        @delete-role="deleteRole"
         @update:permission-keyword="permissionKeyword = $event"
         @update:role-form="roleForm = $event"
         @update:user-role-selections="userRoleSelections = $event"
@@ -109,6 +122,10 @@
         @update:operation-filters="operationFilters = $event"
         @load-operations="loadOperationLogs"
         @reset-operation-filters="resetOperationFilters"
+        @update:create-user-form="createUserForm = $event"
+        @update:reset-password-form="resetPasswordForm = $event"
+        @update:show-create-user-dialog="showCreateUserDialog = $event"
+        @update:show-reset-password-dialog="showResetPasswordDialog = $event"
       />
     </WorkspaceShell>
   </div>
@@ -185,7 +202,11 @@ export default {
       permissionKeyword: "",
       auditFilters: { page: 0, size: 10, principal: "", success: "", remoteIp: "" },
       operationFilters: { page: 0, size: 10, module: "", action: "", operatorUsername: "", success: "" },
-      accountStatusOptions: ["ACTIVE", "LOCKED", "DISABLED"]
+      accountStatusOptions: ["ACTIVE", "LOCKED", "DISABLED"],
+      createUserForm: { username: "", email: "", password: "", displayName: "", phoneNumber: "", roleIds: [] },
+      resetPasswordForm: { userId: null, newPassword: "" },
+      showCreateUserDialog: false,
+      showResetPasswordDialog: false
     };
   },
   computed: {
@@ -198,11 +219,19 @@ export default {
     canReadAdminPermissions() { return this.hasPermission("admin:permissions:read"); },
     canReadAdminLogins() { return this.hasPermission("admin:logins:read"); },
     canReadAdminOperationLogs() { return this.hasPermission("admin:operation-logs:read"); },
+    canCreateAdminUsers() { return this.hasPermission("admin:users:create"); },
+    canDeleteAdminUsers() { return this.hasPermission("admin:users:delete"); },
+    canResetAdminUserPasswords() { return this.hasPermission("admin:users:reset-password"); },
+    canDeleteAdminRoles() { return this.hasPermission("admin:roles:delete"); },
     canAccessAdmin() {
       return this.canReadAdminUsers
         || this.canWriteAdminUsers
+        || this.canCreateAdminUsers
+        || this.canDeleteAdminUsers
+        || this.canResetAdminUserPasswords
         || this.canReadAdminRoles
         || this.canWriteAdminRoles
+        || this.canDeleteAdminRoles
         || this.canReadAdminPermissions
         || this.canReadAdminLogins
         || this.canReadAdminOperationLogs;
@@ -666,6 +695,55 @@ export default {
         this.setMessage("角色信息已保存。", "success");
       } catch (error) {
         if (!this.isAuthRequiredError(error)) this.setMessage(error.message || "角色保存失败。", "error");
+      }
+    },
+    resetCreateUserForm() {
+      this.createUserForm = { username: "", email: "", password: "", displayName: "", phoneNumber: "", roleIds: [] };
+    },
+    async createUser() {
+      try {
+        await this.apiRequest("/api/admin/users", { method: "POST", body: this.createUserForm });
+        this.showCreateUserDialog = false;
+        this.resetCreateUserForm();
+        await this.loadUsers();
+        this.setMessage("用户创建成功。", "success");
+      } catch (error) {
+        if (!this.isAuthRequiredError(error)) this.setMessage(error.message || "用户创建失败。", "error");
+      }
+    },
+    async deleteUser(userId) {
+      if (!window.confirm("确定删除该用户吗？此操作不可撤销。")) return;
+      try {
+        await this.apiRequest(`/api/admin/users/${userId}`, { method: "DELETE" });
+        await this.loadUsers();
+        this.setMessage("用户已删除。", "success");
+      } catch (error) {
+        if (!this.isAuthRequiredError(error)) this.setMessage(error.message || "用户删除失败。", "error");
+      }
+    },
+    openResetPasswordDialog(user) {
+      this.resetPasswordForm = { userId: user.id, newPassword: "" };
+      this.showResetPasswordDialog = true;
+    },
+    async resetUserPassword() {
+      if (!this.resetPasswordForm.newPassword) { this.setMessage("请输入新密码。", "error"); return; }
+      try {
+        await this.apiRequest(`/api/admin/users/${this.resetPasswordForm.userId}/reset-password`, { method: "POST", body: { newPassword: this.resetPasswordForm.newPassword } });
+        this.showResetPasswordDialog = false;
+        this.resetPasswordForm = { userId: null, newPassword: "" };
+        this.setMessage("密码重置成功。", "success");
+      } catch (error) {
+        if (!this.isAuthRequiredError(error)) this.setMessage(error.message || "密码重置失败。", "error");
+      }
+    },
+    async deleteRole(roleId) {
+      if (!window.confirm("确定删除该角色吗？此操作不可撤销。")) return;
+      try {
+        await this.apiRequest(`/api/admin/roles/${roleId}`, { method: "DELETE" });
+        await this.loadRoles();
+        this.setMessage("角色已删除。", "success");
+      } catch (error) {
+        if (!this.isAuthRequiredError(error)) this.setMessage(error.message || "角色删除失败。", "error");
       }
     },
     async apiRequest(url, options = {}) {
