@@ -125,10 +125,10 @@ docker compose up --build
 - 应用名：`testy-multi-module`
 - 服务端口：`8080`
 - Session 过期时间：`30m`
-- 默认数据库：`jdbc:mysql://localhost:3306/testy_auth`
+- 默认数据库：`jdbc:mysql://localhost:3306/TestY`
 - 默认日志目录：`${user.dir}/logs`
-- 默认超级管理员账号：`rootadmin`
-- 默认超级管理员邮箱：`root@testy.local`
+- 默认超级管理员账号：`root`
+- 默认超级管理员邮箱：`root@root.local`
 
 可通过环境变量覆盖的常用配置包括：
 
@@ -142,6 +142,9 @@ docker compose up --build
 - `TESTY_ROOT_USERNAME`
 - `TESTY_ROOT_EMAIL`
 - `TESTY_ROOT_PASSWORD`
+- `TESTY_LOGIN_MAX_ATTEMPTS` — 登录失败最大尝试次数（默认 5）
+- `TESTY_LOGIN_LOCK_MINUTES` — 账户锁定时长，分钟（默认 30）
+- `TESTY_PASSWORD_MIN_LENGTH` — 密码最小长度（默认 8）
 
 ## 安全说明
 

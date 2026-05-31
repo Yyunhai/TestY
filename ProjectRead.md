@@ -157,7 +157,7 @@ testy-parent (聚合 POM)
 | `com.ysalu.domain.document` | 文档及版本实体 |
 | `com.ysalu.repository.*` | Spring Data JPA 仓库接口 |
 | `com.ysalu.service.auth` | 认证核心服务 |
-| `com.ysalu.service.admin` | 管理服务及视图 DTO |
+| `com.ysalu.service.admin` | 管理服务：用户 CRUD、角色管理、密码重置、视图 DTO |
 | `com.ysalu.service.log` | 操作日志记录服务 |
 | `com.ysalu.service.security` | 权限码/角色码常量定义 |
 | `com.ysalu.document` | Markdown 文档业务服务 |
@@ -169,7 +169,7 @@ testy-parent (聚合 POM)
 
 项目使用 JPA + Hibernate，DDL 模式为 `update`（自动建表/更新字段）。
 
-数据库名：`testy_auth`
+数据库名：`TestY`
 
 ### 实体关系总览
 
@@ -194,6 +194,8 @@ MarkdownDocument ──1:N── MarkdownDocumentVersion
 | email | VARCHAR(128) | NOT NULL, UNIQUE | 邮箱 |
 | password_hash | VARCHAR(100) | NOT NULL | BCrypt 密码哈希 |
 | account_status | VARCHAR(24) | NOT NULL | 枚举：ACTIVE / LOCKED / DISABLED / UNKNOWN |
+| failed_login_attempts | INT | NOT NULL, 默认 0 | 连续登录失败次数 |
+| locked_until | DATETIME | 可空 | 账户锁定截止时间 |
 | last_login_at | DATETIME | — | 最后登录时间 |
 | last_login_ip | VARCHAR(64) | — | 最后登录 IP |
 | created_at | DATETIME | NOT NULL | 创建时间 |
@@ -339,6 +341,10 @@ MarkdownDocument ──1:N── MarkdownDocumentVersion
 | GET | `/api/admin/permissions` | `admin:permissions:read` | 获取所有权限 |
 | GET | `/api/admin/login-audits` | `admin:logins:read` | 分页查询登录审计（支持筛选） |
 | GET | `/api/admin/login-audits/alerts` | `admin:logins:read` | 24h 失败登录摘要 + 异常主体 |
+| POST | `/api/admin/users` | `admin:users:create` | 管理员创建用户 |
+| POST | `/api/admin/users/{id}/reset-password` | `admin:users:reset-password` | 管理员重置用户密码 |
+| DELETE | `/api/admin/users/{id}` | `admin:users:delete` | 删除用户（物理删除） |
+| DELETE | `/api/admin/roles/{id}` | `admin:roles:delete` | 删除非内置角色 |
 | GET | `/api/admin/operation-logs` | `admin:operation-logs:read` | 分页查询操作日志（支持筛选） |
 
 ### 文档管理 `/api/docs`
@@ -397,6 +403,10 @@ MarkdownDocument ──1:N── MarkdownDocumentVersion
 | `admin:permissions:read` | 查看权限列表 |
 | `admin:logins:read` | 查看登录审计 |
 | `admin:operation-logs:read` | 查看操作日志 |
+| `admin:users:create` | 管理员创建用户 |
+| `admin:users:delete` | 删除用户 |
+| `admin:users:reset-password` | 管理员重置用户密码 |
+| `admin:roles:delete` | 删除非内置角色 |
 | `system:manage` | 系统管理 |
 
 ### 初始化逻辑
@@ -497,7 +507,7 @@ App.vue（根组件 — 持有全部状态、API 调用、路由逻辑）
 |---|---|---|---|
 | `server.port` | `SERVER_PORT` | `8080` | 后端端口 |
 | `server.servlet.session.timeout` | `SERVER_SESSION_TIMEOUT` | `30m` | Session 超时 |
-| `spring.datasource.url` | `SPRING_DATASOURCE_URL` | `jdbc:mysql://localhost:3306/testy_auth...` | 数据库连接 |
+| `spring.datasource.url` | `SPRING_DATASOURCE_URL` | `jdbc:mysql://localhost:3306/TestY...` | 数据库连接 |
 | `spring.datasource.username` | `SPRING_DATASOURCE_USERNAME` | `root` | 数据库用户名 |
 | `spring.datasource.password` | `SPRING_DATASOURCE_PASSWORD` | — | 数据库密码 |
 | `spring.jpa.hibernate.ddl-auto` | `SPRING_JPA_HIBERNATE_DDL_AUTO` | `update` | DDL 策略 |
@@ -506,6 +516,9 @@ App.vue（根组件 — 持有全部状态、API 调用、路由逻辑）
 | `testy.security.root.username` | `TESTY_ROOT_USERNAME` | `root` | 超管用户名 |
 | `testy.security.root.email` | `TESTY_ROOT_EMAIL` | `root@root.local` | 超管邮箱 |
 | `testy.security.root.password` | `TESTY_ROOT_PASSWORD` | `rootYsalu` | 超管密码 |
+| `testy.security.login.max-attempts` | `TESTY_LOGIN_MAX_ATTEMPTS` | `5` | 登录失败最大尝试次数 |
+| `testy.security.login.lock-minutes` | `TESTY_LOGIN_LOCK_MINUTES` | `30` | 账户锁定时长（分钟） |
+| `testy.security.password.min-length` | `TESTY_PASSWORD_MIN_LENGTH` | `8` | 密码最小长度 |
 
 ### vue.config.js（前端开发配置）
 
@@ -528,7 +541,7 @@ App.vue（根组件 — 持有全部状态、API 调用、路由逻辑）
 **1. 创建数据库**
 
 ```sql
-CREATE DATABASE testy_auth CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
+CREATE DATABASE TestY CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
 ```
 
 **2. 配置数据库连接**
@@ -588,7 +601,7 @@ docker-compose up -d
 通过 `docker-compose.yml` 或 `.env` 文件设置：
 
 ```yaml
-SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/testy_auth?...
+SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/TestY?...
 SPRING_DATASOURCE_USERNAME: root
 SPRING_DATASOURCE_PASSWORD: your_password
 TESTY_ROOT_PASSWORD: your_admin_password
@@ -598,10 +611,12 @@ TESTY_ROOT_PASSWORD: your_admin_password
 
 ## 13. 安全注意事项
 
-- 密码使用 **BCrypt** 哈希存储
+- 密码使用 **BCrypt** 哈希存储，不可逆
 - 认证基于 **HTTP Session**（非 JWT），Session 超时 30 分钟
 - CORS 仅允许 `localhost` 来源
 - `root` 用户名在注册时被显式拦截
+- **账户锁定**：连续登录失败达到上限（默认 5 次）后，账户自动锁定 30 分钟
+- **密码策略**：密码至少 8 位，必须同时包含大写字母、小写字母、数字和特殊字符
 - 登录审计记录每次登录尝试（含 IP、UA、角色权限快照）
 - 操作日志记录所有关键用户行为
 - **部署前必须修改** `application.properties` 和 `docker-compose.yml` 中的默认密码
