@@ -15,6 +15,7 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpSession;
 import javax.validation.Valid;
 import org.springframework.data.domain.Page;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -80,6 +81,61 @@ public class AdminController {
         );
     }
 
+    // 管理员创建新用户。
+    @PostMapping("/users")
+    public AdminUserView createUser(
+            @Valid @RequestBody CreateUserRequest request,
+            HttpSession session,
+            HttpServletRequest httpServletRequest
+    ) {
+        SessionUser sessionUser = sessionAuthorization.requirePermission(session, PermissionCodes.ADMIN_USERS_CREATE);
+        return adminService.createUser(
+                sessionUser.getId(),
+                sessionUser.getUsername(),
+                resolveClientIp(httpServletRequest),
+                request.getUsername(),
+                request.getEmail(),
+                request.getPassword(),
+                request.getDisplayName(),
+                request.getPhoneNumber(),
+                request.getRoleIds()
+        );
+    }
+
+    // 管理员重置指定用户密码。
+    @PostMapping("/users/{userId}/reset-password")
+    public AdminUserView resetUserPassword(
+            @PathVariable Long userId,
+            @Valid @RequestBody ResetUserPasswordRequest request,
+            HttpSession session,
+            HttpServletRequest httpServletRequest
+    ) {
+        SessionUser sessionUser = sessionAuthorization.requirePermission(session, PermissionCodes.ADMIN_USERS_RESET_PASSWORD);
+        return adminService.resetUserPassword(
+                sessionUser.getId(),
+                sessionUser.getUsername(),
+                resolveClientIp(httpServletRequest),
+                userId,
+                request.getNewPassword()
+        );
+    }
+
+    // 删除指定用户。
+    @DeleteMapping("/users/{userId}")
+    public void deleteUser(
+            @PathVariable Long userId,
+            HttpSession session,
+            HttpServletRequest httpServletRequest
+    ) {
+        SessionUser sessionUser = sessionAuthorization.requirePermission(session, PermissionCodes.ADMIN_USERS_DELETE);
+        adminService.deleteUser(
+                sessionUser.getId(),
+                sessionUser.getUsername(),
+                resolveClientIp(httpServletRequest),
+                userId
+        );
+    }
+
     // 查询角色定义列表。
     @GetMapping("/roles")
     public List<RoleView> listRoles(HttpSession session) {
@@ -123,6 +179,22 @@ public class AdminController {
                 request.getName(),
                 request.getDescription(),
                 request.getPermissionIds()
+        );
+    }
+
+    // 删除自定义角色。
+    @DeleteMapping("/roles/{roleId}")
+    public void deleteRole(
+            @PathVariable Long roleId,
+            HttpSession session,
+            HttpServletRequest httpServletRequest
+    ) {
+        SessionUser sessionUser = sessionAuthorization.requirePermission(session, PermissionCodes.ADMIN_ROLES_DELETE);
+        adminService.deleteRole(
+                sessionUser.getId(),
+                sessionUser.getUsername(),
+                resolveClientIp(httpServletRequest),
+                roleId
         );
     }
 

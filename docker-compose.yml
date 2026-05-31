@@ -5,7 +5,7 @@ services:
     restart: unless-stopped
     environment:
       MYSQL_ROOT_PASSWORD: 200612yhx
-      MYSQL_DATABASE: testy_auth
+      MYSQL_DATABASE: TestY
     command:
       - --character-set-server=utf8mb4
       - --collation-server=utf8mb4_unicode_ci
@@ -31,7 +31,7 @@ services:
     environment:
       SERVER_PORT: 8080
       TESTY_LOG_PATH: /app/logs
-      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/testy_auth?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Shanghai&characterEncoding=UTF-8
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/TestY?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Shanghai&characterEncoding=UTF-8
       SPRING_DATASOURCE_USERNAME: root
       SPRING_DATASOURCE_PASSWORD: 200612yhx
       SPRING_JPA_HIBERNATE_DDL_AUTO: update

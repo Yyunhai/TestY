@@ -27,6 +27,7 @@ import java.util.Locale;
 import java.util.Set;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -38,6 +39,15 @@ public class AuthService {
     // 基础邮箱格式校验规则。
     private static final Pattern EMAIL_PATTERN =
             Pattern.compile("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+$");
+
+    @Value("${testy.security.login.max-attempts:5}")
+    private int maxLoginAttempts;
+
+    @Value("${testy.security.login.lock-minutes:30}")
+    private int lockMinutes;
+
+    @Value("${testy.security.password.min-length:8}")
+    private int minPasswordLength;
 
     private final UserAccountRepository userAccountRepository;
     private final UserProfileRepository userProfileRepository;
@@ -129,7 +139,6 @@ public class AuthService {
         return authenticatedUser;
     }
 
-    // 注册用户、补齐资料并分配默认角色。
     // 校验登录凭证，并写入登录审计记录。
     @Transactional(noRollbackFor = AuthException.class)
     public AuthenticatedUser login(String usernameOrEmail, String rawPassword, String remoteIp, String userAgent) {
@@ -158,12 +167,21 @@ public class AuthService {
             throw exception;
         }
 
+        if (isAccountLocked(userAccount)) {
+            recordLoginAttempt(userAccount, principal, remoteIp, userAgent, false, "Account is temporarily locked.",
+                    Collections.<String>emptyList(), Collections.<String>emptyList());
+            throw new AuthException("Account is temporarily locked due to too many failed login attempts. Please try again later.");
+        }
+
         if (!passwordEncoder.matches(rawPassword, userAccount.getPasswordHash())) {
+            handleLoginFailure(userAccount);
             recordLoginAttempt(userAccount, principal, remoteIp, userAgent, false, "Incorrect password.",
                     Collections.<String>emptyList(), Collections.<String>emptyList());
             throw new AuthException("Incorrect password.");
         }
 
+        userAccount.setFailedLoginAttempts(0);
+        userAccount.setLockedUntil(null);
         AuthenticatedUser authenticatedUser = loadAuthenticatedUser(userAccount);
         LocalDateTime now = LocalDateTime.now();
         userAccount.setLastLoginAt(now);
@@ -184,9 +202,8 @@ public class AuthService {
         return authenticatedUser;
     }
 
-    // 注册用户、补齐资料并分配默认角色。
-    @Transactional
     // 按用户名和邮箱重置密码。
+    @Transactional
     public AuthenticatedUser resetPassword(String username, String email, String newPassword, String remoteIp) {
         String normalizedUsername = normalizeUsername(username);
         String normalizedEmail = normalizeEmail(email);
@@ -218,13 +235,26 @@ public class AuthService {
         return authenticatedUser;
     }
 
-    // 注册用户、补齐资料并分配默认角色。
-    @Transactional(readOnly = true)
     // 根据用户 ID 重新装配最新认证信息。
+    @Transactional(readOnly = true)
     public AuthenticatedUser getAuthenticatedUser(Long userId) {
         UserAccount userAccount = userAccountRepository.findById(userId)
                 .orElseThrow(() -> new AuthException("Account does not exist."));
         return loadAuthenticatedUser(userAccount);
+    }
+
+    // 拒绝被禁用、锁定或状态异常的账户继续登录。
+    private boolean isAccountLocked(UserAccount userAccount) {
+        return userAccount.getLockedUntil() != null && LocalDateTime.now().isBefore(userAccount.getLockedUntil());
+    }
+
+    private void handleLoginFailure(UserAccount userAccount) {
+        int attempts = userAccount.getFailedLoginAttempts() + 1;
+        userAccount.setFailedLoginAttempts(attempts);
+        if (attempts >= maxLoginAttempts) {
+            userAccount.setLockedUntil(LocalDateTime.now().plusMinutes(lockMinutes));
+        }
+        userAccountRepository.save(userAccount);
     }
 
     // 拒绝被禁用、锁定或状态异常的账户继续登录。
@@ -368,8 +398,15 @@ public class AuthService {
 
     private void validatePassword(String rawPassword) {
         String value = rawPassword == null ? "" : rawPassword.trim();
-        if (value.length() < 6) {
-            throw new AuthException("Password must be at least 6 characters.");
+        if (value.length() < minPasswordLength) {
+            throw new AuthException("Password must be at least " + minPasswordLength + " characters.");
+        }
+        boolean hasUpper = !value.equals(value.toLowerCase());
+        boolean hasLower = !value.equals(value.toUpperCase());
+        boolean hasDigit = value.matches(".*\\d.*");
+        boolean hasSpecial = value.matches(".*[^A-Za-z0-9].*");
+        if (!hasUpper || !hasLower || !hasDigit || !hasSpecial) {
+            throw new AuthException("Password must contain uppercase letters, lowercase letters, digits, and special characters.");
         }
     }
 

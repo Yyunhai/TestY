@@ -5,6 +5,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -26,4 +27,8 @@ public interface LoginAuditRepository extends JpaRepository<LoginAudit, Long>, J
             @Param("since") LocalDateTime since,
             @Param("threshold") long threshold
     );
+
+    @Modifying(clearAutomatically = true)
+    @Query("UPDATE LoginAudit a SET a.userAccount = null WHERE a.userAccount.id = :userAccountId")
+    void detachUserAccount(@Param("userAccountId") Long userAccountId);
 }

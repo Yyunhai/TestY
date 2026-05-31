@@ -13,8 +13,12 @@ public final class PermissionCodes {
     public static final String DOCS_WRITE = "docs:write";
     public static final String ADMIN_USERS_READ = "admin:users:read";
     public static final String ADMIN_USERS_WRITE = "admin:users:write";
+    public static final String ADMIN_USERS_CREATE = "admin:users:create";
+    public static final String ADMIN_USERS_DELETE = "admin:users:delete";
+    public static final String ADMIN_USERS_RESET_PASSWORD = "admin:users:reset-password";
     public static final String ADMIN_ROLES_READ = "admin:roles:read";
     public static final String ADMIN_ROLES_WRITE = "admin:roles:write";
+    public static final String ADMIN_ROLES_DELETE = "admin:roles:delete";
     public static final String ADMIN_PERMISSIONS_READ = "admin:permissions:read";
     public static final String ADMIN_LOGINS_READ = "admin:logins:read";
     public static final String ADMIN_OPERATION_LOGS_READ = "admin:operation-logs:read";
@@ -31,8 +35,12 @@ public final class PermissionCodes {
                 DOCS_WRITE,
                 ADMIN_USERS_READ,
                 ADMIN_USERS_WRITE,
+                ADMIN_USERS_CREATE,
+                ADMIN_USERS_DELETE,
+                ADMIN_USERS_RESET_PASSWORD,
                 ADMIN_ROLES_READ,
                 ADMIN_ROLES_WRITE,
+                ADMIN_ROLES_DELETE,
                 ADMIN_PERMISSIONS_READ,
                 ADMIN_LOGINS_READ,
                 ADMIN_OPERATION_LOGS_READ,

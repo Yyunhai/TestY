@@ -72,9 +72,13 @@ public class SecurityDataInitializer implements ApplicationRunner {
         permissions.put(PermissionCodes.DOCS_READ, "Read shared markdown documents");
         permissions.put(PermissionCodes.DOCS_WRITE, "Create and update own markdown documents");
         permissions.put(PermissionCodes.ADMIN_USERS_READ, "View user accounts");
-        permissions.put(PermissionCodes.ADMIN_USERS_WRITE, "Change user roles");
+        permissions.put(PermissionCodes.ADMIN_USERS_WRITE, "Change user roles and status");
+        permissions.put(PermissionCodes.ADMIN_USERS_CREATE, "Create user accounts");
+        permissions.put(PermissionCodes.ADMIN_USERS_DELETE, "Delete user accounts");
+        permissions.put(PermissionCodes.ADMIN_USERS_RESET_PASSWORD, "Reset user passwords");
         permissions.put(PermissionCodes.ADMIN_ROLES_READ, "View system roles");
         permissions.put(PermissionCodes.ADMIN_ROLES_WRITE, "Create and update system roles");
+        permissions.put(PermissionCodes.ADMIN_ROLES_DELETE, "Delete custom system roles");
         permissions.put(PermissionCodes.ADMIN_PERMISSIONS_READ, "View system permissions");
         permissions.put(PermissionCodes.ADMIN_LOGINS_READ, "View login audits");
         permissions.put(PermissionCodes.ADMIN_OPERATION_LOGS_READ, "View operation logs");

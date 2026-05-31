@@ -22,6 +22,9 @@ import com.ysalu.service.common.AuthException;
 import com.ysalu.service.log.OperationLogService;
 import com.ysalu.service.security.RoleCodes;
 import java.time.LocalDateTime;
+import java.util.regex.Pattern;
+import javax.persistence.EntityManager;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashSet;
@@ -49,6 +52,11 @@ public class AdminService {
     private final SystemRoleRepository systemRoleRepository;
     private final SystemPermissionRepository systemPermissionRepository;
     private final OperationLogService operationLogService;
+    private final PasswordEncoder passwordEncoder;
+    private final EntityManager entityManager;
+
+    private static final Pattern EMAIL_PATTERN =
+            Pattern.compile("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+$");
 
     public AdminService(
             UserAccountRepository userAccountRepository,
@@ -59,7 +67,9 @@ public class AdminService {
             OperationLogRepository operationLogRepository,
             SystemRoleRepository systemRoleRepository,
             SystemPermissionRepository systemPermissionRepository,
-            OperationLogService operationLogService
+            OperationLogService operationLogService,
+            PasswordEncoder passwordEncoder,
+            EntityManager entityManager
     ) {
         this.userAccountRepository = userAccountRepository;
         this.userProfileRepository = userProfileRepository;
@@ -70,6 +80,8 @@ public class AdminService {
         this.systemRoleRepository = systemRoleRepository;
         this.systemPermissionRepository = systemPermissionRepository;
         this.operationLogService = operationLogService;
+        this.passwordEncoder = passwordEncoder;
+        this.entityManager = entityManager;
     }
 
     @Transactional(readOnly = true)
@@ -337,6 +349,183 @@ public class AdminService {
                 remoteIp
         );
         return adminUserView;
+    }
+
+    @Transactional
+    // 管理员创建新用户并分配角色。
+    public AdminUserView createUser(
+            Long operatorUserId,
+            String operatorUsername,
+            String remoteIp,
+            String username,
+            String email,
+            String rawPassword,
+            String displayName,
+            String phoneNumber,
+            List<Long> roleIds
+    ) {
+        String normalizedUsername = username == null ? "" : username.trim();
+        if (normalizedUsername.length() < 6) {
+            throw new AuthException("Username must be at least 6 characters.");
+        }
+        String normalizedEmail = email == null ? "" : email.trim().toLowerCase(Locale.ROOT);
+        if (!EMAIL_PATTERN.matcher(normalizedEmail).matches()) {
+            throw new AuthException("Email format is invalid.");
+        }
+        if (userAccountRepository.existsByUsername(normalizedUsername)) {
+            throw new AuthException("Username already exists.");
+        }
+        if (userAccountRepository.existsByEmail(normalizedEmail)) {
+            throw new AuthException("Email already exists.");
+        }
+
+        UserAccount account = new UserAccount();
+        account.setUsername(normalizedUsername);
+        account.setEmail(normalizedEmail);
+        account.setPasswordHash(passwordEncoder.encode(rawPassword));
+        account.setAccountStatus(AccountStatus.ACTIVE);
+        UserAccount savedAccount = userAccountRepository.save(account);
+
+        UserProfile profile = new UserProfile();
+        profile.setUserAccount(savedAccount);
+        profile.setDisplayName(displayName == null || displayName.trim().isEmpty() ? normalizedUsername : displayName.trim());
+        profile.setPhoneNumber(phoneNumber == null || phoneNumber.trim().isEmpty() ? null : phoneNumber.trim());
+        userProfileRepository.save(profile);
+
+        if (roleIds != null && !roleIds.isEmpty()) {
+            List<SystemRole> roles = systemRoleRepository.findAllById(roleIds);
+            for (SystemRole role : roles) {
+                UserRole assignment = new UserRole();
+                assignment.setUserAccount(savedAccount);
+                assignment.setRole(role);
+                userRoleRepository.save(assignment);
+            }
+        } else {
+            SystemRole defaultRole = systemRoleRepository.findByCode(RoleCodes.USER)
+                    .orElseThrow(() -> new AuthException("Default user role is missing."));
+            UserRole assignment = new UserRole();
+            assignment.setUserAccount(savedAccount);
+            assignment.setRole(defaultRole);
+            userRoleRepository.save(assignment);
+        }
+
+        AdminUserView adminUserView = buildAdminUserView(savedAccount);
+        operationLogService.record(
+                operatorUserId,
+                operatorUsername,
+                "ADMIN",
+                "USER_CREATED",
+                "USER",
+                savedAccount.getId(),
+                true,
+                "Created user account.",
+                "username=" + normalizedUsername + ", email=" + normalizedEmail,
+                remoteIp
+        );
+        return adminUserView;
+    }
+
+    @Transactional
+    // 管理员重置指定用户的密码。
+    public AdminUserView resetUserPassword(
+            Long operatorUserId,
+            String operatorUsername,
+            String remoteIp,
+            Long userId,
+            String newPassword
+    ) {
+        UserAccount account = userAccountRepository.findById(userId)
+                .orElseThrow(() -> new AuthException("User does not exist."));
+        account.setPasswordHash(passwordEncoder.encode(newPassword));
+        account.setFailedLoginAttempts(0);
+        account.setLockedUntil(null);
+        userAccountRepository.save(account);
+        AdminUserView adminUserView = buildAdminUserView(account);
+        operationLogService.record(
+                operatorUserId,
+                operatorUsername,
+                "ADMIN",
+                "USER_PASSWORD_RESET",
+                "USER",
+                account.getId(),
+                true,
+                "Reset user password.",
+                "username=" + account.getUsername(),
+                remoteIp
+        );
+        return adminUserView;
+    }
+
+    @Transactional
+    // 删除用户及其关联数据，保留审计记录但脱敏。
+    public void deleteUser(
+            Long operatorUserId,
+            String operatorUsername,
+            String remoteIp,
+            Long userId
+    ) {
+        if (operatorUserId.equals(userId)) {
+            throw new AuthException("Cannot delete yourself.");
+        }
+        UserAccount account = userAccountRepository.findById(userId)
+                .orElseThrow(() -> new AuthException("User does not exist."));
+        if (userRoleRepository.existsByUserAccount_IdAndRole_Code(userId, RoleCodes.ROOT)) {
+            throw new AuthException("Cannot delete ROOT account.");
+        }
+
+        loginAuditRepository.detachUserAccount(userId);
+        operationLogRepository.detachOperatorUser(userId);
+        entityManager.flush();
+        entityManager.clear();
+        userProfileRepository.findByUserAccount_Id(userId).ifPresent(userProfileRepository::delete);
+        userRoleRepository.deleteAllByUserAccount_Id(userId);
+        userAccountRepository.delete(account);
+
+        operationLogService.record(
+                operatorUserId,
+                operatorUsername,
+                "ADMIN",
+                "USER_DELETED",
+                "USER",
+                userId,
+                true,
+                "Deleted user account.",
+                "username=" + account.getUsername(),
+                remoteIp
+        );
+    }
+
+    @Transactional
+    // 删除自定义角色及其权限关联。
+    public void deleteRole(
+            Long operatorUserId,
+            String operatorUsername,
+            String remoteIp,
+            Long roleId
+    ) {
+        SystemRole role = systemRoleRepository.findById(roleId)
+                .orElseThrow(() -> new AuthException("Role does not exist."));
+        if (role.isBuiltIn()) {
+            throw new AuthException("Cannot delete built-in role.");
+        }
+        long assignedUsers = userRoleRepository.countByRole_Id(roleId);
+        if (assignedUsers > 0) {
+            throw new AuthException("Cannot delete role: " + assignedUsers + " user(s) are still assigned to it.");
+        }
+        rolePermissionRepository.deleteAllByRole_Id(roleId);
+        systemRoleRepository.delete(role);
+        operationLogService.record(
+                operatorUserId,
+                operatorUsername,
+                "ADMIN",
+                "ROLE_DELETED",
+                "ROLE",
+                roleId,
+                true,
+                "Deleted role.",
+                "code=" + role.getCode(),
+                remoteIp
+        );
     }
 
     // 聚合资料、角色和权限，生成后台用户视图。
