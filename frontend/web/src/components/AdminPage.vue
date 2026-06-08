@@ -1,7 +1,6 @@
 <template>
-  <div class="admin-page">
-    <!-- Admin Tab Bar -->
-    <div class="admin-tabs">
+  <div class="admin-page" ref="adminPage">
+    <div class="admin-tabs" ref="adminTabs">
       <button
         v-for="tab in tabs"
         :key="tab.key"
@@ -16,31 +15,18 @@
       <button class="btn-ghost ml-auto" type="button" @click="$emit('refresh')">刷新数据</button>
     </div>
 
-    <!-- Overview Section -->
-    <div v-if="section === 'overview'" class="admin-content">
+    <div v-if="section === 'overview'" class="admin-content" ref="adminContent">
       <div v-if="errors.overview" class="notice error">{{ errors.overview }}</div>
 
-      <div class="stats-grid">
-        <div class="stat-card">
-          <span class="stat-label">用户数</span>
-          <span class="stat-value">{{ canReadUsers ? users.length : '--' }}</span>
-        </div>
-        <div class="stat-card">
-          <span class="stat-label">角色数</span>
-          <span class="stat-value">{{ canReadRoles ? roles.length : '--' }}</span>
-        </div>
-        <div class="stat-card">
-          <span class="stat-label">权限数</span>
-          <span class="stat-value">{{ canReadPermissions ? permissions.length : '--' }}</span>
-        </div>
-        <div class="stat-card warning">
-          <span class="stat-label">24h 失败登录</span>
-          <span class="stat-value">{{ canReadLogins ? auditAlerts.failedAttemptsLast24Hours : '--' }}</span>
+      <div class="stats-grid" ref="statsGrid">
+        <div class="stat-card" v-for="(stat, i) in overviewStats" :key="i" :ref="el => setStatRef(el, i)">
+          <span class="stat-label">{{ stat.label }}</span>
+          <span class="stat-value">{{ stat.value }}</span>
         </div>
       </div>
 
       <div class="overview-grid">
-        <div class="card">
+        <div class="card" ref="alertCard">
           <div class="card-header">
             <p class="card-eyebrow">风险提醒</p>
             <h3 class="card-title">异常登录主体</h3>
@@ -53,7 +39,7 @@
             <p v-if="!latestSuspicious.length" class="empty-text">当前没有高频失败登录主体</p>
           </div>
         </div>
-        <div class="card">
+        <div class="card" ref="permCard">
           <div class="card-header">
             <p class="card-eyebrow">权限概览</p>
             <h3 class="card-title">当前后台能力</h3>
@@ -66,8 +52,7 @@
       </div>
     </div>
 
-    <!-- Users Section -->
-    <div v-else-if="section === 'users'" class="admin-content">
+    <div v-else-if="section === 'users'" class="admin-content" ref="adminContent">
       <div v-if="errors.users" class="notice error">{{ errors.users }}</div>
 
       <div class="section-toolbar">
@@ -100,7 +85,7 @@
       </div>
 
       <div class="user-list">
-        <div v-for="adminUser in filteredUsers" :key="adminUser.id" class="card user-card">
+        <div v-for="(adminUser, i) in filteredUsers" :key="adminUser.id" class="card user-card" :ref="el => setUserCardRef(el, i)">
           <div class="card-header">
             <div class="user-header-info">
               <div class="user-avatar">{{ (adminUser.displayName || adminUser.username || '?').charAt(0).toUpperCase() }}</div>
@@ -174,12 +159,11 @@
       </div>
     </div>
 
-    <!-- Roles Section -->
-    <div v-else-if="section === 'roles'" class="admin-content roles-layout">
+    <div v-else-if="section === 'roles'" class="admin-content roles-layout" ref="adminContent">
       <div v-if="errors.roles" class="notice error">{{ errors.roles }}</div>
 
       <div class="roles-list" v-if="canReadRoles">
-        <div v-for="role in roles" :key="role.id" class="card role-card">
+        <div v-for="(role, i) in roles" :key="role.id" class="card role-card" :ref="el => setRoleCardRef(el, i)">
           <div class="card-header">
             <div>
               <h3 class="card-title">{{ role.name }}</h3>
@@ -205,7 +189,7 @@
       </div>
 
       <div class="roles-editor">
-        <div class="card" v-if="canWriteRoles && canReadPermissions">
+        <div class="card" v-if="canWriteRoles && canReadPermissions" ref="roleFormCard">
           <div class="card-header">
             <h3 class="card-title">{{ roleForm.id ? '编辑角色' : '新建角色' }}</h3>
             <button class="btn-ghost" type="button" @click="$emit('reset-role-form')">清空</button>
@@ -241,7 +225,7 @@
           <p class="empty-text">当前账号没有角色写入权限，暂时只能查看角色信息。</p>
         </div>
 
-        <div class="card perm-catalog" v-if="canReadPermissions">
+        <div class="card perm-catalog" v-if="canReadPermissions" ref="permCatalog">
           <div class="card-header">
             <div>
               <p class="card-eyebrow">权限目录</p>
@@ -261,11 +245,10 @@
       </div>
     </div>
 
-    <!-- Audits Section -->
-    <div v-else-if="section === 'audits'" class="admin-content">
+    <div v-else-if="section === 'audits'" class="admin-content" ref="adminContent">
       <div v-if="errors.audits" class="notice error">{{ errors.audits }}</div>
 
-      <div class="card" v-if="latestSuspicious.length">
+      <div class="card" v-if="latestSuspicious.length" ref="auditAlertCard">
         <div class="card-header">
           <p class="card-eyebrow">告警总览</p>
           <h3 class="card-title">异常登录提醒</h3>
@@ -298,7 +281,7 @@
       </div>
 
       <div class="audit-list">
-        <div v-for="audit in auditPage.content" :key="audit.id" class="card audit-card">
+        <div v-for="(audit, i) in auditPage.content" :key="audit.id" class="card audit-card" :ref="el => setAuditCardRef(el, i)">
           <div class="card-header">
             <div>
               <h3 class="card-title">{{ audit.principal || '未知主体' }}</h3>
@@ -322,8 +305,7 @@
       </div>
     </div>
 
-    <!-- Operations Section -->
-    <div v-else-if="section === 'operations'" class="admin-content">
+    <div v-else-if="section === 'operations'" class="admin-content" ref="adminContent">
       <div v-if="errors.operations" class="notice error">{{ errors.operations }}</div>
 
       <div class="filter-bar filter-wide">
@@ -342,7 +324,7 @@
       </div>
 
       <div class="audit-list">
-        <div v-for="log in operationPage.content" :key="log.id" class="card audit-card">
+        <div v-for="(log, i) in operationPage.content" :key="log.id" class="card audit-card" :ref="el => setOpsCardRef(el, i)">
           <div class="card-header">
             <div>
               <h3 class="card-title">{{ log.action || 'UNKNOWN_ACTION' }}</h3>
@@ -366,7 +348,6 @@
       </div>
     </div>
 
-    <!-- Create User Dialog -->
     <teleport to="body">
       <div v-if="showCreateUserDialog" class="dialog-overlay" @click.self="$emit('update:showCreateUserDialog', false)">
         <div class="dialog">
@@ -430,7 +411,6 @@
       </div>
     </teleport>
 
-    <!-- Reset Password Dialog -->
     <teleport to="body">
       <div v-if="showResetPasswordDialog" class="dialog-overlay" @click.self="$emit('update:showResetPasswordDialog', false)">
         <div class="dialog dialog-sm">
@@ -460,6 +440,8 @@
 </template>
 
 <script>
+import { gsap } from "gsap";
+
 export default {
   name: "AdminPage",
   props: {
@@ -508,6 +490,15 @@ export default {
     "update:showCreateUserDialog", "update:showResetPasswordDialog",
     "update:userRoleSelections", "update:userStatusSelections"
   ],
+  data() {
+    return {
+      statRefs: [],
+      userCardRefs: [],
+      roleCardRefs: [],
+      auditCardRefs: [],
+      opsCardRefs: []
+    };
+  },
   computed: {
     tabs() {
       const tabs = [];
@@ -523,6 +514,14 @@ export default {
       if (this.canReadLogins) tabs.push({ key: "audits", label: "登录审计", icon: iconAudit });
       if (this.canReadOperationLogs) tabs.push({ key: "operations", label: "操作日志", icon: iconOps });
       return tabs;
+    },
+    overviewStats() {
+      return [
+        { label: "用户数", value: this.canReadUsers ? this.users.length : '--' },
+        { label: "角色数", value: this.canReadRoles ? this.roles.length : '--' },
+        { label: "权限数", value: this.canReadPermissions ? this.permissions.length : '--' },
+        { label: "24h 失败登录", value: this.canReadLogins ? this.auditAlerts.failedAttemptsLast24Hours : '--' }
+      ];
     },
     latestSuspicious() {
       return (this.auditAlerts.suspiciousPrincipals || []).slice(0, 5);
@@ -551,7 +550,50 @@ export default {
       return u ? (u.displayName || u.username) : "";
     }
   },
+  mounted() {
+    this.$nextTick(() => this.animateAdmin());
+  },
   methods: {
+    setStatRef(el, i) { if (el) this.statRefs[i] = el; },
+    setUserCardRef(el, i) { if (el) this.userCardRefs[i] = el; },
+    setRoleCardRef(el, i) { if (el) this.roleCardRefs[i] = el; },
+    setAuditCardRef(el, i) { if (el) this.auditCardRefs[i] = el; },
+    setOpsCardRef(el, i) { if (el) this.opsCardRefs[i] = el; },
+    animateAdmin() {
+      const tl = gsap.timeline({ defaults: { ease: "power2.out" } });
+
+      tl.fromTo(this.$refs.adminTabs, { opacity: 0, y: -10 }, { opacity: 1, y: 0, duration: 0.35, clearProps: "transform" });
+
+      const stats = this.statRefs.filter(Boolean);
+      if (stats.length) {
+        tl.fromTo(stats, { opacity: 0, y: 20, scale: 0.97 }, { opacity: 1, y: 0, scale: 1, stagger: 0.08, duration: 0.35, clearProps: "transform" }, "-=0.2");
+      }
+
+      const overviewCards = [this.$refs.alertCard, this.$refs.permCard, this.$refs.auditAlertCard, this.$refs.roleFormCard, this.$refs.permCatalog].filter(Boolean);
+      if (overviewCards.length) {
+        tl.fromTo(overviewCards, { opacity: 0, y: 15 }, { opacity: 1, y: 0, stagger: 0.1, duration: 0.3, clearProps: "transform" }, "-=0.2");
+      }
+
+      const userCards = this.userCardRefs.filter(Boolean);
+      if (userCards.length) {
+        tl.fromTo(userCards, { opacity: 0, y: 12 }, { opacity: 1, y: 0, stagger: 0.06, duration: 0.3, clearProps: "transform" }, "-=0.15");
+      }
+
+      const roleCards = this.roleCardRefs.filter(Boolean);
+      if (roleCards.length) {
+        tl.fromTo(roleCards, { opacity: 0, y: 12 }, { opacity: 1, y: 0, stagger: 0.06, duration: 0.3, clearProps: "transform" }, "-=0.15");
+      }
+
+      const auditCards = this.auditCardRefs.filter(Boolean);
+      if (auditCards.length) {
+        tl.fromTo(auditCards, { opacity: 0, y: 12 }, { opacity: 1, y: 0, stagger: 0.05, duration: 0.3, clearProps: "transform" }, "-=0.15");
+      }
+
+      const opsCards = this.opsCardRefs.filter(Boolean);
+      if (opsCards.length) {
+        tl.fromTo(opsCards, { opacity: 0, y: 12 }, { opacity: 1, y: 0, stagger: 0.05, duration: 0.3, clearProps: "transform" }, "-=0.15");
+      }
+    },
     formatDateTime(value) {
       if (!value) return "--";
       const date = new Date(value);
@@ -606,7 +648,6 @@ export default {
   gap: 20px;
 }
 
-/* Tabs */
 .admin-tabs {
   display: flex;
   gap: 6px;
@@ -670,13 +711,11 @@ export default {
   align-items: center;
 }
 
-/* Admin Content */
 .admin-content {
   display: grid;
   gap: 18px;
 }
 
-/* Section Toolbar */
 .section-toolbar {
   display: flex;
   gap: 12px;
@@ -687,7 +726,6 @@ export default {
   flex: 1;
 }
 
-/* Stats */
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -740,18 +778,12 @@ export default {
   font-variant-numeric: tabular-nums;
 }
 
-.stat-card.warning .stat-value {
-  color: var(--danger);
-}
-
-/* Overview Grid */
 .overview-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 18px;
 }
 
-/* Cards */
 .card {
   background: var(--surface);
   border: 1px solid var(--border);
@@ -760,34 +792,12 @@ export default {
   display: grid;
   gap: 14px;
   transition: transform 0.25s ease, box-shadow 0.25s ease;
-  animation: cardFadeIn 0.4s ease both;
 }
 
 .card:hover {
   transform: translateY(-2px);
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.06);
 }
-
-@keyframes cardFadeIn {
-  from { opacity: 0; transform: translateY(12px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-.user-card:nth-child(1) { animation-delay: 0.05s; }
-.user-card:nth-child(2) { animation-delay: 0.1s; }
-.user-card:nth-child(3) { animation-delay: 0.15s; }
-.user-card:nth-child(4) { animation-delay: 0.2s; }
-.user-card:nth-child(5) { animation-delay: 0.25s; }
-
-.role-card:nth-child(1) { animation-delay: 0.05s; }
-.role-card:nth-child(2) { animation-delay: 0.1s; }
-.role-card:nth-child(3) { animation-delay: 0.15s; }
-
-.audit-card:nth-child(1) { animation-delay: 0.05s; }
-.audit-card:nth-child(2) { animation-delay: 0.1s; }
-.audit-card:nth-child(3) { animation-delay: 0.15s; }
-.audit-card:nth-child(4) { animation-delay: 0.2s; }
-.audit-card:nth-child(5) { animation-delay: 0.25s; }
 
 .card-header {
   display: flex;
@@ -817,7 +827,6 @@ export default {
   color: var(--text-muted);
 }
 
-/* Alerts */
 .alert-list {
   display: grid;
   gap: 8px;
@@ -847,7 +856,6 @@ export default {
   color: var(--text-muted);
 }
 
-/* Chips */
 .chip-grid {
   display: flex;
   gap: 8px;
@@ -868,7 +876,6 @@ export default {
   transform: scale(1.05);
 }
 
-/* Filter Bar */
 .filter-bar {
   display: grid;
   grid-template-columns: 1fr 160px;
@@ -905,7 +912,6 @@ export default {
   gap: 8px;
 }
 
-/* User Card */
 .user-list {
   display: grid;
   gap: 14px;
@@ -990,7 +996,6 @@ export default {
   flex-wrap: wrap;
 }
 
-/* Status Badge */
 .status-badge {
   display: inline-flex;
   align-items: center;
@@ -1032,7 +1037,6 @@ export default {
   color: var(--danger);
 }
 
-/* Roles Layout */
 .roles-layout {
   grid-template-columns: 1fr 1fr;
 }
@@ -1164,7 +1168,6 @@ export default {
   transform: translateY(-1px);
 }
 
-/* Permission Catalog */
 .perm-catalog {
   max-height: 700px;
   overflow-y: auto;
@@ -1204,7 +1207,6 @@ export default {
   color: var(--text-light);
 }
 
-/* Audit List */
 .audit-list {
   display: grid;
   gap: 12px;
@@ -1217,7 +1219,6 @@ export default {
   line-height: 1.6;
 }
 
-/* Pagination */
 .pagination {
   display: flex;
   align-items: center;
@@ -1235,7 +1236,6 @@ export default {
   border-radius: 8px;
 }
 
-/* Buttons */
 .btn-ghost {
   display: inline-flex;
   align-items: center;
@@ -1273,7 +1273,6 @@ export default {
   border-color: var(--danger);
 }
 
-/* Notices */
 .notice {
   padding: 14px 18px;
   border-radius: 14px;
@@ -1303,7 +1302,6 @@ export default {
   border: 1px dashed var(--border);
 }
 
-/* Dialogs */
 .dialog-overlay {
   position: fixed;
   inset: 0;

@@ -1,7 +1,6 @@
 <template>
-  <div class="docs-page">
-    <!-- Document Sidebar -->
-    <aside class="docs-sidebar">
+  <div class="docs-page" ref="docsPage">
+    <aside class="docs-sidebar" ref="docsSidebar">
       <div class="sidebar-top">
         <button class="btn-primary btn-full" type="button" @click="$emit('new-document')">
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
@@ -28,13 +27,14 @@
           <button class="btn-text" type="button" @click="$emit('refresh')">刷新</button>
         </div>
       </div>
-      <div class="doc-list">
+      <div class="doc-list" ref="docList">
         <button
-          v-for="doc in filteredDocuments"
+          v-for="(doc, i) in filteredDocuments"
           :key="doc.id"
           type="button"
           class="doc-item"
           :class="{ active: currentDocumentId === doc.id }"
+          :ref="el => setDocItemRef(el, i)"
           @click="$emit('open-document', doc.id)"
         >
           <span class="doc-item-title">{{ doc.title || '未命名文档' }}</span>
@@ -44,10 +44,8 @@
       </div>
     </aside>
 
-    <!-- Editor Main -->
-    <div class="docs-main">
-      <!-- Editor Area -->
-      <div class="editor-section">
+    <div class="docs-main" ref="docsMain">
+      <div class="editor-section" ref="editorSection">
         <div class="editor-header">
           <div class="editor-header-left">
             <h2 class="editor-title">{{ currentDocumentId ? '编辑文档' : '新建草稿' }}</h2>
@@ -99,8 +97,7 @@
         </div>
       </div>
 
-      <!-- Version History -->
-      <div class="versions-section">
+      <div class="versions-section" ref="versionsSection">
         <div class="versions-header">
           <div>
             <p class="section-eyebrow">版本历史</p>
@@ -109,7 +106,7 @@
           <button class="btn-ghost" type="button" :disabled="!currentDocumentId" @click="$emit('refresh-versions')">刷新</button>
         </div>
         <div class="versions-list" v-if="documentVersions.length">
-          <div v-for="version in documentVersions" :key="version.id" class="version-item">
+          <div v-for="(version, i) in documentVersions" :key="version.id" class="version-item" :ref="el => setVersionRef(el, i)">
             <div class="version-info">
               <span class="version-number">#{{ version.versionNumber }}</span>
               <div class="version-meta">
@@ -127,6 +124,8 @@
 </template>
 
 <script>
+import { gsap } from "gsap";
+
 export default {
   name: "DocsPage",
   props: {
@@ -144,6 +143,12 @@ export default {
     "new-document", "open-document", "save", "delete-document",
     "refresh", "refresh-versions", "restore-version"
   ],
+  data() {
+    return {
+      docItemRefs: [],
+      versionRefs: []
+    };
+  },
   computed: {
     filteredDocuments() {
       const keyword = (this.searchKeyword || "").toLowerCase();
@@ -152,7 +157,44 @@ export default {
       );
     }
   },
+  mounted() {
+    this.animateDocsPage();
+  },
   methods: {
+    setDocItemRef(el, i) {
+      if (el) this.docItemRefs[i] = el;
+    },
+    setVersionRef(el, i) {
+      if (el) this.versionRefs[i] = el;
+    },
+    animateDocsPage() {
+      const tl = gsap.timeline({ defaults: { ease: "power2.out" } });
+
+      tl.fromTo(this.$refs.docsSidebar, { opacity: 0, x: -20 }, { opacity: 1, x: 0, duration: 0.4, clearProps: "transform" });
+
+      tl.fromTo(
+        this.docItemRefs.filter(Boolean),
+        { opacity: 0, x: -15 },
+        { opacity: 1, x: 0, stagger: 0.04, duration: 0.3, clearProps: "transform" },
+        "-=0.2"
+      );
+
+      tl.fromTo(this.$refs.docsMain, { opacity: 0, y: 15 }, { opacity: 1, y: 0, duration: 0.35, clearProps: "transform" }, "-=0.3");
+
+      tl.fromTo(
+        this.$refs.editorSection,
+        { opacity: 0, y: 12 },
+        { opacity: 1, y: 0, duration: 0.3, clearProps: "transform" },
+        "-=0.2"
+      );
+
+      tl.fromTo(
+        this.versionRefs.filter(Boolean),
+        { opacity: 0, y: 10 },
+        { opacity: 1, y: 0, stagger: 0.05, duration: 0.25, clearProps: "transform" },
+        "-=0.1"
+      );
+    },
     formatDateTime(value) {
       if (!value) return "--";
       const date = new Date(value);
@@ -176,7 +218,6 @@ export default {
   min-height: calc(100vh - 140px);
 }
 
-/* Sidebar */
 .docs-sidebar {
   background: var(--surface);
   border: 1px solid var(--border);
@@ -334,7 +375,6 @@ export default {
   color: var(--text-muted);
 }
 
-/* Main Editor */
 .docs-main {
   display: grid;
   gap: 20px;
@@ -451,7 +491,6 @@ export default {
   font-weight: 400;
 }
 
-/* Editor Workbench */
 .editor-workbench {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -520,7 +559,6 @@ export default {
   line-height: 1.75;
 }
 
-/* Version History */
 .versions-section {
   background: var(--surface);
   border: 1px solid var(--border);

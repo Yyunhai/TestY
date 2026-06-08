@@ -1,11 +1,11 @@
 <template>
-  <div class="dashboard">
-    <div class="welcome-banner">
+  <div class="dashboard" ref="dashboard">
+    <div class="welcome-banner" ref="welcomeBanner">
       <div class="welcome-content">
-        <h2 class="welcome-title">你好，{{ user.displayName || user.username }}！</h2>
-        <p class="welcome-text">欢迎回到 TestY 工作台，这是你的工作概览。</p>
+        <h2 class="welcome-title" ref="welcomeTitle">你好，{{ user.displayName || user.username }}！</h2>
+        <p class="welcome-text" ref="welcomeText">欢迎回到 TestY 工作台，这是你的工作概览。</p>
       </div>
-      <div class="welcome-decoration">
+      <div class="welcome-decoration" ref="welcomeDeco">
         <div class="deco-circle c1"></div>
         <div class="deco-circle c2"></div>
         <div class="deco-circle c3"></div>
@@ -13,8 +13,8 @@
     </div>
 
     <div class="dashboard-grid">
-      <div class="stats-row">
-        <div class="stat-card">
+      <div class="stats-row" ref="statsRow">
+        <div class="stat-card" ref="statDocs">
           <div class="stat-icon docs-icon">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
               <path d="M5 3C5 2.44772 5.44772 2 6 2H13L19 8V21C19 21.5523 18.5523 22 18 22H6C5.44772 22 5 21.5523 5 21V3Z" stroke="currentColor" stroke-width="1.5"/>
@@ -22,11 +22,11 @@
             </svg>
           </div>
           <div class="stat-info">
-            <span class="stat-value">{{ documents.length }}</span>
+            <span class="stat-value" ref="statDocsValue">{{ documents.length }}</span>
             <span class="stat-label">文档总数</span>
           </div>
         </div>
-        <div class="stat-card">
+        <div class="stat-card" ref="statRoles">
           <div class="stat-icon roles-icon">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
               <path d="M16 21V19C16 16.7909 14.2091 15 12 15H5C2.79086 15 1 16.7909 1 19V21" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
@@ -35,11 +35,11 @@
             </svg>
           </div>
           <div class="stat-info">
-            <span class="stat-value">{{ (user.roles || []).length }}</span>
+            <span class="stat-value" ref="statRolesValue">{{ (user.roles || []).length }}</span>
             <span class="stat-label">当前角色</span>
           </div>
         </div>
-        <div class="stat-card">
+        <div class="stat-card" ref="statPerms">
           <div class="stat-icon perm-icon">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
               <path d="M12 2L3 7V12C3 16.97 6.84 21.61 12 22.74C17.16 21.61 21 16.97 21 12V7L12 2Z" stroke="currentColor" stroke-width="1.5"/>
@@ -47,14 +47,14 @@
             </svg>
           </div>
           <div class="stat-info">
-            <span class="stat-value">{{ (user.permissions || []).length }}</span>
+            <span class="stat-value" ref="statPermsValue">{{ (user.permissions || []).length }}</span>
             <span class="stat-label">权限数量</span>
           </div>
         </div>
       </div>
 
       <div class="content-row">
-        <div class="card recent-docs">
+        <div class="card recent-docs" ref="recentDocs">
           <div class="card-header">
             <div>
               <p class="card-eyebrow">最近文档</p>
@@ -63,7 +63,7 @@
             <button v-if="canReadDocs" class="btn-ghost" type="button" @click="$emit('navigate', 'docs')">查看全部</button>
           </div>
           <div class="doc-list">
-            <div v-for="doc in recentDocuments" :key="doc.id" class="doc-item" @click="$emit('open-doc', doc.id)">
+            <div v-for="(doc, i) in recentDocuments" :key="doc.id" class="doc-item" :ref="el => setDocItemRef(el, i)" @click="$emit('open-doc', doc.id)">
               <div class="doc-icon">
                 <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
                   <path d="M3 2C3 1.44772 3.44772 1 4 1H10L15 6V16C15 16.5523 14.5523 17 14 17H4C3.44772 17 3 16.5523 3 16V2Z" stroke="currentColor" stroke-width="1.2"/>
@@ -80,7 +80,7 @@
           </div>
         </div>
 
-        <div class="card quick-info">
+        <div class="card quick-info" ref="quickInfo">
           <div class="card-header">
             <div>
               <p class="card-eyebrow">账号信息</p>
@@ -88,30 +88,9 @@
             </div>
           </div>
           <div class="info-list">
-            <div class="info-row">
-              <span class="info-label">用户名</span>
-              <span class="info-value">{{ user.username || '--' }}</span>
-            </div>
-            <div class="info-row">
-              <span class="info-label">显示名称</span>
-              <span class="info-value">{{ user.displayName || '--' }}</span>
-            </div>
-            <div class="info-row">
-              <span class="info-label">角色</span>
-              <span class="info-value">
-                <span v-for="role in (user.roles || [])" :key="role" class="tag">{{ role }}</span>
-                <span v-if="!(user.roles || []).length">--</span>
-              </span>
-            </div>
-            <div class="info-row">
-              <span class="info-label">权限数</span>
-              <span class="info-value">{{ (user.permissions || []).length }} 项</span>
-            </div>
-            <div class="info-row">
-              <span class="info-label">超级管理员</span>
-              <span class="info-value">
-                <span class="badge" :class="user.rootAdmin ? 'yes' : 'no'">{{ user.rootAdmin ? '是' : '否' }}</span>
-              </span>
+            <div class="info-row" v-for="(row, i) in infoRows" :key="i" :ref="el => setInfoRowRef(el, i)">
+              <span class="info-label">{{ row.label }}</span>
+              <span class="info-value" v-html="row.value"></span>
             </div>
           </div>
         </div>
@@ -121,6 +100,8 @@
 </template>
 
 <script>
+import { gsap } from "gsap";
+
 export default {
   name: "DashboardPage",
   props: {
@@ -129,9 +110,67 @@ export default {
     canReadDocs: { type: Boolean, default: false }
   },
   emits: ["navigate", "open-doc"],
+  data() {
+    return {
+      docItems: [],
+      infoRowRefs: []
+    };
+  },
   computed: {
     recentDocuments() {
       return this.documents.slice(0, 5);
+    },
+    infoRows() {
+      return [
+        { label: "用户名", value: this.user.username || '--' },
+        { label: "显示名称", value: this.user.displayName || '--' },
+        { label: "角色", value: (this.user.roles || []).length ? (this.user.roles || []).map(r => `<span class="tag">${r}</span>`).join('') : '--' },
+        { label: "权限数", value: `${(this.user.permissions || []).length} 项` },
+        { label: "超级管理员", value: `<span class="badge ${this.user.rootAdmin ? 'yes' : 'no'}">${this.user.rootAdmin ? '是' : '否'}</span>` }
+      ];
+    }
+  },
+  mounted() {
+    this.animateDashboard();
+  },
+  methods: {
+    setDocItemRef(el, i) {
+      if (el) this.docItems[i] = el;
+    },
+    setInfoRowRef(el, i) {
+      if (el) this.infoRowRefs[i] = el;
+    },
+    animateDashboard() {
+      const tl = gsap.timeline({ defaults: { ease: "power2.out" } });
+
+      tl.fromTo(this.$refs.welcomeBanner, { opacity: 0, scale: 0.95 }, { opacity: 1, scale: 1, duration: 0.5, clearProps: "transform" })
+        .fromTo(this.$refs.welcomeTitle, { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 0.4 }, "-=0.3")
+        .fromTo(this.$refs.welcomeText, { opacity: 0, y: 10 }, { opacity: 1, y: 0, duration: 0.3 }, "-=0.2");
+
+      const stats = [this.$refs.statDocs, this.$refs.statRoles, this.$refs.statPerms].filter(Boolean);
+      tl.fromTo(stats, { opacity: 0, y: 30 }, { opacity: 1, y: 0, stagger: 0.1, duration: 0.45, clearProps: "transform" }, "-=0.1");
+
+      const statValues = [this.$refs.statDocsValue, this.$refs.statRolesValue, this.$refs.statPermsValue].filter(Boolean);
+      statValues.forEach((el) => {
+        const finalVal = parseInt(el.textContent, 10) || 0;
+        el.textContent = "0";
+        tl.call(() => {
+          gsap.to(el, { duration: 0.8, ease: "power2.out", innerText: finalVal, snap: { innerText: 1 } });
+        }, [], "-=0.6");
+      });
+
+      const cards = [this.$refs.recentDocs, this.$refs.quickInfo].filter(Boolean);
+      tl.fromTo(cards, { opacity: 0, y: 20 }, { opacity: 1, y: 0, stagger: 0.12, duration: 0.4, clearProps: "transform" }, "-=0.1");
+
+      const docItems = this.docItems.filter(Boolean);
+      if (docItems.length) {
+        tl.fromTo(docItems, { opacity: 0, x: -15 }, { opacity: 1, x: 0, stagger: 0.06, duration: 0.3, clearProps: "transform" }, "-=0.1");
+      }
+
+      const infoRows = this.infoRowRefs.filter(Boolean);
+      if (infoRows.length) {
+        tl.fromTo(infoRows, { opacity: 0, x: -10 }, { opacity: 1, x: 0, stagger: 0.05, duration: 0.25, clearProps: "transform" }, "-=0.1");
+      }
     }
   }
 };
@@ -143,7 +182,6 @@ export default {
   gap: 24px;
 }
 
-/* Welcome Banner */
 .welcome-banner {
   background: linear-gradient(135deg, var(--accent) 0%, #d4622a 100%);
   border-radius: 20px;
@@ -189,7 +227,6 @@ export default {
 .c2 { width: 100px; height: 100px; right: 40px; top: 60px; }
 .c3 { width: 60px; height: 60px; right: 10px; top: 100px; }
 
-/* Stats */
 .stats-row {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -237,7 +274,6 @@ export default {
   color: var(--text-muted);
 }
 
-/* Content Row */
 .content-row {
   display: grid;
   grid-template-columns: 1.2fr 1fr;
@@ -293,7 +329,6 @@ export default {
   border-color: var(--border-hover);
 }
 
-/* Doc List */
 .doc-list {
   display: grid;
   gap: 8px;
@@ -350,7 +385,6 @@ export default {
   font-size: 14px;
 }
 
-/* Info List */
 .info-list {
   display: grid;
   gap: 12px;

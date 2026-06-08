@@ -1,7 +1,6 @@
 <template>
   <div class="workspace">
-    <!-- Sidebar -->
-    <aside class="sidebar" :class="{ collapsed: sidebarCollapsed }">
+    <aside class="sidebar" :class="{ collapsed: sidebarCollapsed }" ref="sidebar">
       <div class="sidebar-header">
         <div class="sidebar-brand">
           <img class="brand-icon" src="../assets/logo2.png" alt="TestY" />
@@ -14,12 +13,13 @@
         </button>
       </div>
 
-      <nav class="sidebar-nav">
+      <nav class="sidebar-nav" ref="sidebarNav">
         <button
           type="button"
           class="nav-item"
           :class="{ active: currentPage === 'dashboard' }"
           @click="$emit('navigate', 'dashboard')"
+          ref="navDashboard"
         >
           <span class="nav-icon">
             <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
@@ -38,6 +38,7 @@
           class="nav-item"
           :class="{ active: currentPage === 'docs' }"
           @click="$emit('navigate', 'docs')"
+          ref="navDocs"
         >
           <span class="nav-icon">
             <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
@@ -50,11 +51,44 @@
         </button>
 
         <button
+          v-if="canReadDiscussion"
+          type="button"
+          class="nav-item"
+          :class="{ active: currentPage === 'community' }"
+          @click="$emit('navigate', 'community')"
+          ref="navCommunity"
+        >
+          <span class="nav-icon">
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+              <path d="M14 3C14 2.44772 13.5523 2 13 2H7C6.44772 2 6 2.44772 6 3V8L4 10V16C4 16.5523 4.44772 17 5 17H15C15.5523 17 16 16.5523 16 16V10L14 8V3Z" stroke="currentColor" stroke-width="1.5"/>
+              <path d="M8 12H12M8 15H11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+            </svg>
+          </span>
+          <span class="nav-label" v-show="!sidebarCollapsed">社区</span>
+        </button>
+
+        <button
+          type="button"
+          class="nav-item"
+          :class="{ active: currentPage === 'profile' }"
+          @click="$emit('navigate', 'profile')"
+          ref="navProfile"
+        >
+          <span class="nav-icon">
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+              <path d="M16 17C16 14.8 13.3 13 10 13C6.7 13 4 14.8 4 17M10 10C11.7 10 13 8.7 13 7C13 5.3 11.7 4 10 4C8.3 4 7 5.3 7 7C7 8.7 8.3 10 10 10Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+            </svg>
+          </span>
+          <span class="nav-label" v-show="!sidebarCollapsed">我的</span>
+        </button>
+
+        <button
           v-if="canAccessAdmin"
           type="button"
           class="nav-item"
           :class="{ active: currentPage === 'admin' }"
           @click="$emit('navigate', 'admin')"
+          ref="navAdmin"
         >
           <span class="nav-icon">
             <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
@@ -87,9 +121,7 @@
       </div>
     </aside>
 
-    <!-- Main Content -->
     <div class="main-area">
-      <!-- Topbar -->
       <header class="topbar">
         <div class="topbar-left">
           <h1 class="topbar-title">{{ pageTitle }}</h1>
@@ -105,16 +137,14 @@
         </div>
       </header>
 
-      <!-- Toast Messages -->
       <Transition name="toast">
-        <div v-if="message.text" class="toast" :class="message.type">
+        <div v-if="message.text" class="toast" :class="message.type" ref="toast">
           <span class="toast-icon">{{ message.type === 'error' ? '!' : message.type === 'success' ? '✓' : 'i' }}</span>
           <span class="toast-text">{{ message.text }}</span>
         </div>
       </Transition>
 
-      <!-- Page Content -->
-      <main class="content">
+      <main class="content" ref="content">
         <slot></slot>
       </main>
     </div>
@@ -122,6 +152,8 @@
 </template>
 
 <script>
+import { gsap } from "gsap";
+
 export default {
   name: "WorkspaceShell",
   props: {
@@ -131,12 +163,16 @@ export default {
     message: { type: Object, default: () => ({ type: "info", text: "" }) },
     sidebarCollapsed: { type: Boolean, default: false },
     canReadDocs: { type: Boolean, default: false },
+    canReadDiscussion: { type: Boolean, default: false },
     canAccessAdmin: { type: Boolean, default: false }
   },
   emits: ["navigate", "logout", "toggle-sidebar"],
+  mounted() {
+    this.animateSidebar();
+  },
   computed: {
     pageTitle() {
-      const map = { dashboard: "工作台", docs: "文档中心", admin: "后台管理" };
+      const map = { dashboard: "工作台", docs: "文档中心", community: "社区讨论", profile: "我的", admin: "后台管理" };
       return map[this.currentPage] || "TestY";
     },
     adminSectionLabel() {
@@ -145,6 +181,16 @@ export default {
     }
   },
   methods: {
+    animateSidebar() {
+      const items = [
+        this.$refs.navDashboard,
+        ...(this.$refs.navDocs ? [this.$refs.navDocs] : []),
+        ...(this.$refs.navCommunity ? [this.$refs.navCommunity] : []),
+        ...(this.$refs.navProfile ? [this.$refs.navProfile] : []),
+        ...(this.$refs.navAdmin ? [this.$refs.navAdmin] : [])
+      ].filter(Boolean);
+      gsap.fromTo(items, { opacity: 0, x: -20 }, { opacity: 1, x: 0, stagger: 0.08, duration: 0.4, ease: "power2.out", clearProps: "transform" });
+    },
     formatDateTime(value) {
       if (!value) return "--";
       const date = new Date(value);
@@ -167,14 +213,13 @@ export default {
   background: var(--bg);
 }
 
-/* Sidebar */
 .sidebar {
   width: 260px;
   background: var(--surface);
   border-right: 1px solid var(--border);
   display: flex;
   flex-direction: column;
-  transition: width 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: width 0.35s cubic-bezier(0.16, 1, 0.3, 1);
   flex-shrink: 0;
   position: sticky;
   top: 0;
@@ -344,7 +389,6 @@ export default {
   background: var(--danger-bg);
 }
 
-/* Main Area */
 .main-area {
   flex: 1;
   min-width: 0;
@@ -399,7 +443,6 @@ export default {
   color: var(--text-muted);
 }
 
-/* Toast */
 .toast {
   position: fixed;
   top: 24px;
@@ -456,7 +499,6 @@ export default {
   to { opacity: 0; transform: translateX(40px); }
 }
 
-/* Content */
 .content {
   flex: 1;
   padding: 28px 32px;

@@ -1,6 +1,5 @@
 <template>
   <div class="app">
-    <!-- Auth Page -->
     <AuthPage
       v-if="!authenticated"
       :mode="authMode"
@@ -18,120 +17,133 @@
       @submit="submitAuth"
     />
 
-    <!-- Workspace -->
     <WorkspaceShell
       v-else
+      ref="workspaceShell"
       :user="user"
       :current-page="currentPage"
       :admin-section="adminSection"
       :message="message"
       :sidebar-collapsed="sidebarCollapsed"
       :can-read-docs="canReadDocs"
+      :can-read-discussion="canReadDiscussion"
       :can-access-admin="canAccessAdmin"
       @navigate="setPage"
       @logout="logout"
       @toggle-sidebar="sidebarCollapsed = !sidebarCollapsed"
     >
-      <!-- Dashboard -->
-      <DashboardPage
-        v-if="currentPage === 'dashboard'"
-        :user="user"
-        :documents="documents"
-        :can-read-docs="canReadDocs"
-        @navigate="setPage"
-        @open-doc="openDocumentFromDashboard"
-      />
+      <template v-slot:default>
+        <div class="page-transition" ref="pageTransition">
+          <DashboardPage
+            v-if="currentPage === 'dashboard'"
+            :user="user"
+            :documents="documents"
+            :can-read-docs="canReadDocs"
+            @navigate="setPage"
+            @open-doc="openDocumentFromDashboard"
+          />
 
-      <!-- Documents -->
-      <DocsPage
-        v-else-if="currentPage === 'docs' && canReadDocs"
-        :documents="documents"
-        :search-keyword="documentSearchKeyword"
-        :current-document-id="currentDocumentId"
-        :document-form="documentForm"
-        :document-versions="documentVersions"
-        :save-hint="saveHint"
-        :rendered-markdown="renderedMarkdown"
-        :document-word-count="documentWordCount"
-        @update:search-keyword="documentSearchKeyword = $event; updateHash()"
-        @update:document-form="onDocumentFormUpdate"
-        @new-document="startNewDocument"
-        @open-document="openDocument"
-        @save="saveDocument"
-        @delete-document="deleteDocument"
-        @refresh="loadDocuments"
-        @refresh-versions="loadVersions"
-        @restore-version="restoreVersion"
-      />
+          <DocsPage
+            v-else-if="currentPage === 'docs' && canReadDocs"
+            :documents="documents"
+            :search-keyword="documentSearchKeyword"
+            :current-document-id="currentDocumentId"
+            :document-form="documentForm"
+            :document-versions="documentVersions"
+            :save-hint="saveHint"
+            :rendered-markdown="renderedMarkdown"
+            :document-word-count="documentWordCount"
+            @update:search-keyword="documentSearchKeyword = $event; updateHash()"
+            @update:document-form="onDocumentFormUpdate"
+            @new-document="startNewDocument"
+            @open-document="openDocument"
+            @save="saveDocument"
+            @delete-document="deleteDocument"
+            @refresh="loadDocuments"
+            @refresh-versions="loadVersions"
+            @restore-version="restoreVersion"
+          />
 
-      <!-- Admin -->
-      <AdminPage
-        v-else-if="currentPage === 'admin' && canAccessAdmin"
-        :section="adminSection"
-        :user="user"
-        :users="adminUsers"
-        :roles="adminRoles"
-        :permissions="adminPermissions"
-        :errors="adminErrors"
-        :audit-alerts="auditAlerts"
-        :audit-page="auditPage"
-        :operation-page="adminOperationPage"
-        :user-filters="userFilters"
-        :user-role-selections="userRoleSelections"
-        :user-status-selections="userStatusSelections"
-        :role-form="roleForm"
-        :permission-keyword="permissionKeyword"
-        :audit-filters="auditFilters"
-        :operation-filters="operationFilters"
-        :account-status-options="accountStatusOptions"
-        :can-read-users="canReadAdminUsers"
-        :can-write-users="canWriteAdminUsers"
-        :can-create-users="canCreateAdminUsers"
-        :can-delete-users="canDeleteAdminUsers"
-        :can-reset-user-passwords="canResetAdminUserPasswords"
-        :can-read-roles="canReadAdminRoles"
-        :can-write-roles="canWriteAdminRoles"
-        :can-delete-roles="canDeleteAdminRoles"
-        :can-read-permissions="canReadAdminPermissions"
-        :can-read-logins="canReadAdminLogins"
-        :can-read-operation-logs="canReadAdminOperationLogs"
-        :create-user-form="createUserForm"
-        :reset-password-form="resetPasswordForm"
-        :show-create-user-dialog="showCreateUserDialog"
-        :show-reset-password-dialog="showResetPasswordDialog"
-        @change-section="changeAdminSection"
-        @refresh="loadAdminData"
-        @update:user-filters="userFilters = $event"
-        @save-user-roles="saveUserRoles"
-        @save-user-status="saveUserStatus"
-        @create-user="createUser"
-        @delete-user="deleteUser"
-        @reset-user-password="openResetPasswordDialog"
-        @submit-reset-password="resetUserPassword"
-        @edit-role="editRole"
-        @reset-role-form="resetRoleForm"
-        @submit-role="submitRoleForm"
-        @delete-role="deleteRole"
-        @update:permission-keyword="permissionKeyword = $event"
-        @update:role-form="roleForm = $event"
-        @update:user-role-selections="userRoleSelections = $event"
-        @update:user-status-selections="userStatusSelections = $event"
-        @update:audit-filters="auditFilters = $event"
-        @load-audits="loadAudits"
-        @reset-audit-filters="resetAuditFilters"
-        @update:operation-filters="operationFilters = $event"
-        @load-operations="loadOperationLogs"
-        @reset-operation-filters="resetOperationFilters"
-        @update:create-user-form="createUserForm = $event"
-        @update:reset-password-form="resetPasswordForm = $event"
-        @update:show-create-user-dialog="showCreateUserDialog = $event"
-        @update:show-reset-password-dialog="showResetPasswordDialog = $event"
-      />
+          <CommunityPage
+            v-else-if="currentPage === 'community'"
+            :user="user"
+          />
+
+          <MyProfilePage
+            v-else-if="currentPage === 'profile'"
+            :user="user"
+          />
+
+          <AdminPage
+            v-else-if="currentPage === 'admin' && canAccessAdmin"
+            :section="adminSection"
+            :user="user"
+            :users="adminUsers"
+            :roles="adminRoles"
+            :permissions="adminPermissions"
+            :errors="adminErrors"
+            :audit-alerts="auditAlerts"
+            :audit-page="auditPage"
+            :operation-page="adminOperationPage"
+            :user-filters="userFilters"
+            :user-role-selections="userRoleSelections"
+            :user-status-selections="userStatusSelections"
+            :role-form="roleForm"
+            :permission-keyword="permissionKeyword"
+            :audit-filters="auditFilters"
+            :operation-filters="operationFilters"
+            :account-status-options="accountStatusOptions"
+            :can-read-users="canReadAdminUsers"
+            :can-write-users="canWriteAdminUsers"
+            :can-create-users="canCreateAdminUsers"
+            :can-delete-users="canDeleteAdminUsers"
+            :can-reset-user-passwords="canResetAdminUserPasswords"
+            :can-read-roles="canReadAdminRoles"
+            :can-write-roles="canWriteAdminRoles"
+            :can-delete-roles="canDeleteAdminRoles"
+            :can-read-permissions="canReadAdminPermissions"
+            :can-read-logins="canReadAdminLogins"
+            :can-read-operation-logs="canReadAdminOperationLogs"
+            :create-user-form="createUserForm"
+            :reset-password-form="resetPasswordForm"
+            :show-create-user-dialog="showCreateUserDialog"
+            :show-reset-password-dialog="showResetPasswordDialog"
+            @change-section="changeAdminSection"
+            @refresh="loadAdminData"
+            @update:user-filters="userFilters = $event"
+            @save-user-roles="saveUserRoles"
+            @save-user-status="saveUserStatus"
+            @create-user="createUser"
+            @delete-user="deleteUser"
+            @reset-user-password="openResetPasswordDialog"
+            @submit-reset-password="resetUserPassword"
+            @edit-role="editRole"
+            @reset-role-form="resetRoleForm"
+            @submit-role="submitRoleForm"
+            @delete-role="deleteRole"
+            @update:permission-keyword="permissionKeyword = $event"
+            @update:role-form="roleForm = $event"
+            @update:user-role-selections="userRoleSelections = $event"
+            @update:user-status-selections="userStatusSelections = $event"
+            @update:audit-filters="auditFilters = $event"
+            @load-audits="loadAudits"
+            @reset-audit-filters="resetAuditFilters"
+            @update:operation-filters="operationFilters = $event"
+            @load-operations="loadOperationLogs"
+            @reset-operation-filters="resetOperationFilters"
+            @update:create-user-form="createUserForm = $event"
+            @update:reset-password-form="resetPasswordForm = $event"
+            @update:show-create-user-dialog="showCreateUserDialog = $event"
+            @update:show-reset-password-dialog="showResetPasswordDialog = $event"
+          />
+        </div>
+      </template>
     </WorkspaceShell>
   </div>
 </template>
 
 <script>
+import { gsap } from "gsap";
 import MarkdownIt from "markdown-it";
 import markdownItTaskLists from "markdown-it-task-lists";
 import hljs from "highlight.js";
@@ -141,6 +153,8 @@ import WorkspaceShell from "./components/WorkspaceShell.vue";
 import DashboardPage from "./components/DashboardPage.vue";
 import DocsPage from "./components/DocsPage.vue";
 import AdminPage from "./components/AdminPage.vue";
+import CommunityPage from "./components/CommunityPage.vue";
+import MyProfilePage from "./components/MyProfilePage.vue";
 
 const LOGIN_USERNAME_STORAGE_KEY = "testy.login.username";
 const LOGIN_PASSWORD_STORAGE_KEY = "testy.login.password";
@@ -157,14 +171,14 @@ const md = new MarkdownIt({
   }
 }).use(markdownItTaskLists);
 
-const emptyUser = () => ({ username: "", displayName: "", roles: [], permissions: [], rootAdmin: false, lastLoginAt: null });
+const emptyUser = () => ({ id: null, username: "", displayName: "", roles: [], permissions: [], rootAdmin: false, lastLoginAt: null });
 const emptyDoc = () => ({ title: "", content: "", createdAt: null, updatedAt: null });
 const emptyRole = () => ({ id: null, code: "", name: "", description: "", permissionIds: [] });
 const emptyAuditPage = () => ({ content: [], number: 0, totalPages: 1, totalElements: 0 });
 
 export default {
   name: "AppRoot",
-  components: { AuthPage, WorkspaceShell, DashboardPage, DocsPage, AdminPage },
+  components: { AuthPage, WorkspaceShell, DashboardPage, DocsPage, AdminPage, CommunityPage, MyProfilePage },
   data() {
     return {
       authMode: "login",
@@ -211,6 +225,7 @@ export default {
   },
   computed: {
     canReadDocs() { return this.hasPermission("docs:read"); },
+    canReadDiscussion() { return this.hasPermission("discussion:read"); },
     canWriteDocs() { return this.hasPermission("docs:write"); },
     canReadAdminUsers() { return this.hasPermission("admin:users:read"); },
     canWriteAdminUsers() { return this.hasPermission("admin:users:write"); },
@@ -254,7 +269,10 @@ export default {
       }
     },
     "documentForm.title"() { this.queueAutosave(); },
-    "documentForm.content"() { this.queueAutosave(); }
+    "documentForm.content"() { this.queueAutosave(); },
+    currentPage() {
+      this.$nextTick(() => this.animatePageEnter());
+    }
   },
   async mounted() {
     this.restoreLoginPreferences();
@@ -275,6 +293,11 @@ export default {
     clearMessage() {
       if (this._messageTimer) clearTimeout(this._messageTimer);
       this.message = { text: "", type: "info" };
+    },
+    animatePageEnter() {
+      const el = this.$refs.pageTransition;
+      if (!el) return;
+      gsap.fromTo(el, { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 0.5, ease: "power2.out", clearProps: "transform" });
     },
     readStoredValue(key) {
       try { return window.localStorage.getItem(key) || ""; } catch (e) { return ""; }
@@ -339,12 +362,14 @@ export default {
         this.authenticated = true;
         this.syncFromHash();
         await this.loadCurrentPage();
+        this.$nextTick(() => this.animatePageEnter());
       } catch (error) {
         this.authenticated = false;
       }
     },
     applyAuth(data) {
       this.user = {
+        id: data.id || null,
         username: data.username || "",
         displayName: data.displayName || data.username || "",
         roles: data.roles || [],
@@ -407,6 +432,12 @@ export default {
       if (page === "docs" && this.canReadDocs) {
         this.currentPage = "docs";
         this.documentSearchKeyword = query.get("q") || "";
+      } else if (page === "community" && this.canReadDiscussion) {
+        this.currentPage = "community";
+        this.documentSearchKeyword = "";
+      } else if (page === "profile") {
+        this.currentPage = "profile";
+        this.documentSearchKeyword = "";
       } else if (page === "admin" && this.canAccessAdmin) {
         this.currentPage = "admin";
         const validSections = ["overview", "users", "roles", "audits", "operations"];
@@ -424,6 +455,10 @@ export default {
         const params = new URLSearchParams();
         if (this.documentSearchKeyword) params.set("q", this.documentSearchKeyword);
         nextHash = params.toString() ? `#docs?${params.toString()}` : "#docs";
+      } else if (this.currentPage === "community") {
+        nextHash = "#community";
+      } else if (this.currentPage === "profile") {
+        nextHash = "#profile";
       } else if (this.currentPage === "admin") {
         nextHash = `#admin/${this.adminSection}`;
       }
@@ -436,6 +471,9 @@ export default {
         this.currentPage = "dashboard";
         this.adminSection = "overview";
         this.updateHash();
+        return;
+      }
+      if (page === "community" && !this.canReadDiscussion) {
         return;
       }
       this.currentPage = page;
@@ -772,7 +810,6 @@ export default {
 </script>
 
 <style>
-/* ===== Design System ===== */
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&display=swap');
 
 :root {
@@ -814,7 +851,6 @@ body {
 button { cursor: pointer; font: inherit; }
 input, select, textarea { font: inherit; }
 
-/* Markdown Body Styles */
 .markdown-body { line-height: 1.75; color: var(--text); }
 .markdown-body h1, .markdown-body h2, .markdown-body h3 { margin: 1.2em 0 0.5em; font-weight: 700; }
 .markdown-body h1 { font-size: 1.6em; }
@@ -856,6 +892,5 @@ input, select, textarea { font: inherit; }
 .markdown-body img { max-width: 100%; border-radius: 8px; }
 .markdown-body input[type="checkbox"] { accent-color: var(--accent); margin-right: 6px; }
 
-/* App Shell */
 .app { min-height: 100vh; }
 </style>
