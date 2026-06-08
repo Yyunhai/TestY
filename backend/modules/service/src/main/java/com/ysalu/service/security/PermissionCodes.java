@@ -24,6 +24,10 @@ public final class PermissionCodes {
     public static final String ADMIN_OPERATION_LOGS_READ = "admin:operation-logs:read";
     public static final String SYSTEM_MANAGE = "system:manage";
 
+    public static final String DISCUSSION_READ = "discussion:read";
+    public static final String DISCUSSION_WRITE = "discussion:write";
+    public static final String DISCUSSION_DELETE = "discussion:delete";
+
     private PermissionCodes() {
     }
 
@@ -44,7 +48,10 @@ public final class PermissionCodes {
                 ADMIN_PERMISSIONS_READ,
                 ADMIN_LOGINS_READ,
                 ADMIN_OPERATION_LOGS_READ,
-                SYSTEM_MANAGE
+                SYSTEM_MANAGE,
+                DISCUSSION_READ,
+                DISCUSSION_WRITE,
+                DISCUSSION_DELETE
         );
     }
 }

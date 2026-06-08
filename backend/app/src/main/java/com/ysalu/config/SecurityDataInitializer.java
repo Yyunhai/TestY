@@ -83,6 +83,9 @@ public class SecurityDataInitializer implements ApplicationRunner {
         permissions.put(PermissionCodes.ADMIN_LOGINS_READ, "View login audits");
         permissions.put(PermissionCodes.ADMIN_OPERATION_LOGS_READ, "View operation logs");
         permissions.put(PermissionCodes.SYSTEM_MANAGE, "Manage system settings");
+        permissions.put(PermissionCodes.DISCUSSION_READ, "Read community discussions");
+        permissions.put(PermissionCodes.DISCUSSION_WRITE, "Create and update discussions and replies");
+        permissions.put(PermissionCodes.DISCUSSION_DELETE, "Delete discussions and replies");
 
         for (Map.Entry<String, String> entry : permissions.entrySet()) {
             ensurePermission(entry.getKey(), entry.getValue());
@@ -98,6 +101,8 @@ public class SecurityDataInitializer implements ApplicationRunner {
         ensureRolePermission(userRole, PermissionCodes.PROFILE_READ);
         ensureRolePermission(userRole, PermissionCodes.DOCS_READ);
         ensureRolePermission(userRole, PermissionCodes.DOCS_WRITE);
+        ensureRolePermission(userRole, PermissionCodes.DISCUSSION_READ);
+        ensureRolePermission(userRole, PermissionCodes.DISCUSSION_WRITE);
 
         UserAccount rootAccount = userAccountRepository.findByUsername(rootUsername).orElseGet(this::createRootAccount);
         if (!userRoleRepository.existsByUserAccount_IdAndRole_Code(rootAccount.getId(), RoleCodes.ROOT)) {
