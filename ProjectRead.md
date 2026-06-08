@@ -29,7 +29,10 @@ TestY 是一个基于 Spring Boot + Vue 3 的 Web 应用，主要功能包括：
 - **用户认证**：注册、登录、密码重置、会话管理
 - **后台管理**：用户管理、角色权限管理、登录审计、操作日志
 - **Markdown 文档**：多人协作的 Markdown 编辑器，支持版本历史与自动保存
+- **社区讨论**：帖子发布、回复讨论、标签分类、搜索筛选、点赞、收藏、分享
+- **个人中心**：查看个人信息、我的帖子、点赞列表、收藏列表
 - **项目概览**：展示系统模块信息
+- **动画引擎**：基于 GSAP 的页面过渡、列表入场、计数动画
 
 项目采用**前后端分离**架构，开发时前端通过代理访问后端 API，生产部署时前端静态资源打包进后端 JAR。
 
@@ -64,6 +67,7 @@ TestY 是一个基于 Spring Boot + Vue 3 的 Web 应用，主要功能包括：
 | Markdown 渲染 | markdown-it | 14.1.1 |
 | 任务列表扩展 | markdown-it-task-lists | 2.1.1 |
 | 代码高亮 | highlight.js | 11.11.1 |
+| 动画引擎 | GSAP | 3.12.x |
 | 转译 | Babel 7 | @babel/core 7.12.x |
 | 代码检查 | ESLint + eslint-plugin-vue | 7.32.x / 8.0.x |
 | Node.js | 18.x | — |
@@ -77,6 +81,10 @@ TestY/
 ├── pom.xml                    # Maven 根聚合 POM
 ├── Dockerfile                 # 多阶段 Docker 构建
 ├── docker-compose.yml         # MySQL + App 编排
+├── ProjectRead.md             # 详细项目文档
+├── README.md                  # 快速入门指南
+├── docs/
+│   └── 人机验证集成指南.md
 ├── backend/
 │   ├── app/                   # Spring Boot 启动模块（Web 层 + 配置）
 │   │   ├── pom.xml
@@ -86,18 +94,20 @@ TestY/
 │   │       └── web/                     # Controller + DTO
 │   │           ├── auth/                # 认证接口
 │   │           ├── admin/               # 管理接口
+│   │           ├── discussion/          # 社区讨论接口
 │   │           ├── document/            # 文档接口
 │   │           ├── overview/            # 概览接口
 │   │           └── common/              # 异常处理、会话授权
 │   └── modules/
 │       ├── repository/        # 实体类 + 仓库接口
 │       │   └── src/main/java/com/ysalu/
-│       │       ├── domain/              # JPA 实体（auth/audit/document）
+│       │       ├── domain/              # JPA 实体（auth/audit/document/discussion）
 │       │       └── repository/          # Spring Data 接口
 │       ├── service/           # 业务逻辑层
 │       │   └── src/main/java/com/ysalu/service/
 │       │       ├── auth/                # AuthService（注册/登录/重置密码）
 │       │       ├── admin/               # AdminService（用户/角色/审计管理）
+│       │       ├── discussion/          # DiscussionService（帖子/回复 CRUD）
 │       │       ├── log/                 # OperationLogService
 │       │       ├── overview/            # ProjectOverviewService
 │       │       ├── security/            # 权限码/角色码常量
@@ -123,6 +133,8 @@ TestY/
                 ├── WorkspaceShell.vue   # 工作区布局（侧边栏 + 顶栏）
                 ├── DashboardPage.vue    # 仪表盘
                 ├── DocsPage.vue         # Markdown 文档编辑器
+                ├── CommunityPage.vue    # 社区讨论（帖子列表/详情/回复/点赞/收藏/分享）
+                ├── MyProfilePage.vue    # 个人中心（个人信息/我的帖子/点赞/收藏）
                 └── AdminPage.vue        # 后台管理（多 Tab）
 ```
 
@@ -149,15 +161,18 @@ testy-parent (聚合 POM)
 | `com.ysalu.config` | Spring 配置 Bean（安全初始化、CORS、认证拦截器、密码编码器） |
 | `com.ysalu.web.auth` | 认证 Controller、请求/响应 DTO、SessionUser 模型 |
 | `com.ysalu.web.admin` | 管理 Controller 及管理专用 DTO |
+| `com.ysalu.web.discussion` | 社区讨论 Controller 及请求 DTO |
 | `com.ysalu.web.document` | 文档 Controller 及请求 DTO |
 | `com.ysalu.web.overview` | 项目概览 Controller |
 | `com.ysalu.web.common` | 统一异常处理、会话授权辅助、自定义异常 |
 | `com.ysalu.domain.auth` | 认证相关 JPA 实体 |
 | `com.ysalu.domain.audit` | 操作日志实体 |
 | `com.ysalu.domain.document` | 文档及版本实体 |
+| `com.ysalu.domain.discussion` | 讨论帖子、回复、点赞、收藏实体 |
 | `com.ysalu.repository.*` | Spring Data JPA 仓库接口 |
 | `com.ysalu.service.auth` | 认证核心服务 |
 | `com.ysalu.service.admin` | 管理服务：用户 CRUD、角色管理、密码重置、视图 DTO |
+| `com.ysalu.service.discussion` | 讨论服务：帖子/回复 CRUD 及视图 DTO |
 | `com.ysalu.service.log` | 操作日志记录服务 |
 | `com.ysalu.service.security` | 权限码/角色码常量定义 |
 | `com.ysalu.document` | Markdown 文档业务服务 |
@@ -181,6 +196,13 @@ UserAccount ──1:N── LoginAudit
 UserAccount ──1:N── OperationLog
 UserAccount ──1:N── MarkdownDocument (作为 owner)
 MarkdownDocument ──1:N── MarkdownDocumentVersion
+UserAccount ──1:N── DiscussionPost   (作为 author)
+UserAccount ──1:N── DiscussionReply  (作为 author)
+UserAccount ──1:N── PostLike         (作为 user)
+UserAccount ──1:N── PostBookmark     (作为 user)
+DiscussionPost ──1:N── DiscussionReply
+DiscussionPost ──1:N── PostLike
+DiscussionPost ──1:N── PostBookmark
 ```
 
 ### 表结构详情
@@ -308,6 +330,49 @@ MarkdownDocument ──1:N── MarkdownDocumentVersion
 | source_type | VARCHAR(24) | NOT NULL | 枚举：MANUAL / AUTOSAVE / IMPORT / RESTORE |
 | created_at | DATETIME | NOT NULL | 创建时间 |
 
+#### discussion_post（讨论帖子）
+
+| 字段 | 类型 | 约束 | 说明 |
+|---|---|---|---|
+| id | BIGINT | PK, 自增 | 主键 |
+| author_id | BIGINT | FK → user_account, NOT NULL | 作者 |
+| title | VARCHAR(120) | NOT NULL | 帖子标题 |
+| content | TEXT (Lob) | NOT NULL | 帖子内容 |
+| tags | VARCHAR(255) | — | 标签（逗号分隔） |
+| created_at | DATETIME | NOT NULL | 创建时间 |
+| updated_at | DATETIME | NOT NULL | 更新时间 |
+
+#### discussion_reply（讨论回复）
+
+| 字段 | 类型 | 约束 | 说明 |
+|---|---|---|---|
+| id | BIGINT | PK, 自增 | 主键 |
+| post_id | BIGINT | FK → discussion_post, NOT NULL | 所属帖子 |
+| author_id | BIGINT | FK → user_account, NOT NULL | 作者 |
+| content | TEXT (Lob) | NOT NULL | 回复内容 |
+| created_at | DATETIME | NOT NULL | 创建时间 |
+| updated_at | DATETIME | NOT NULL | 更新时间 |
+
+#### post_like（帖子点赞）
+
+| 字段 | 类型 | 约束 | 说明 |
+|---|---|---|---|
+| id | BIGINT | PK, 自增 | 主键 |
+| post_id | BIGINT | FK → discussion_post, NOT NULL | 帖子 |
+| user_id | BIGINT | FK → user_account, NOT NULL | 用户 |
+| created_at | DATETIME | NOT NULL | 点赞时间 |
+| | | UNIQUE(post_id, user_id) | 每人每帖只能点赞一次 |
+
+#### post_bookmark（帖子收藏）
+
+| 字段 | 类型 | 约束 | 说明 |
+|---|---|---|---|
+| id | BIGINT | PK, 自增 | 主键 |
+| post_id | BIGINT | FK → discussion_post, NOT NULL | 帖子 |
+| user_id | BIGINT | FK → user_account, NOT NULL | 用户 |
+| created_at | DATETIME | NOT NULL | 收藏时间 |
+| | | UNIQUE(post_id, user_id) | 每人每帖只能收藏一次 |
+
 ---
 
 ## 6. API 接口文档
@@ -359,6 +424,24 @@ MarkdownDocument ──1:N── MarkdownDocumentVersion
 | GET | `/api/docs/{documentId}/versions` | `docs:read` | 获取版本历史 |
 | POST | `/api/docs/{documentId}/versions/{versionId}/restore` | `docs:write` | 恢复到指定版本 |
 
+### 社区讨论 `/api/discussions`
+
+| 方法 | 路径 | 权限 | 说明 |
+|---|---|---|---|
+| GET | `/api/discussions/posts` | `discussion:read` | 获取帖子列表（按时间倒序） |
+| GET | `/api/discussions/posts/{postId}` | `discussion:read` | 获取帖子详情（含回复） |
+| POST | `/api/discussions/posts` | `discussion:write` | 创建帖子 |
+| PUT | `/api/discussions/posts/{postId}` | `discussion:write` | 更新帖子（仅作者可操作） |
+| DELETE | `/api/discussions/posts/{postId}` | `discussion:write` | 删除帖子（仅作者可操作） |
+| POST | `/api/discussions/posts/{postId}/replies` | `discussion:write` | 添加回复 |
+| PUT | `/api/discussions/replies/{replyId}` | `discussion:write` | 编辑回复（仅作者可操作） |
+| DELETE | `/api/discussions/replies/{replyId}` | `discussion:write` | 删除回复（仅作者可操作） |
+| POST | `/api/discussions/posts/{postId}/like` | `discussion:read` | 切换点赞状态（返回 `{liked, likeCount}`） |
+| POST | `/api/discussions/posts/{postId}/bookmark` | `discussion:read` | 切换收藏状态（返回 `{bookmarked, bookmarkCount}`） |
+| GET | `/api/discussions/my/posts` | `discussion:read` | 获取当前用户的帖子 |
+| GET | `/api/discussions/my/likes` | `discussion:read` | 获取当前用户点赞的帖子 |
+| GET | `/api/discussions/my/bookmarks` | `discussion:read` | 获取当前用户收藏的帖子 |
+
 ### 认证机制
 
 - 基于 **HTTP Session**（非 JWT）
@@ -396,6 +479,9 @@ MarkdownDocument ──1:N── MarkdownDocumentVersion
 | `profile:read` | 查看个人资料 |
 | `docs:read` | 读取 Markdown 文档 |
 | `docs:write` | 创建和编辑 Markdown 文档 |
+| `discussion:read` | 阅读社区讨论 |
+| `discussion:write` | 发布帖子与回复 |
+| `discussion:delete` | 删除讨论内容 |
 | `admin:users:read` | 查看用户列表 |
 | `admin:users:write` | 修改用户角色和状态 |
 | `admin:roles:read` | 查看角色列表 |
@@ -408,6 +494,20 @@ MarkdownDocument ──1:N── MarkdownDocumentVersion
 | `admin:users:reset-password` | 管理员重置用户密码 |
 | `admin:roles:delete` | 删除非内置角色 |
 | `system:manage` | 系统管理 |
+
+### 默认角色权限分配
+
+| 权限 | ROOT | USER |
+|---|---|---|
+| `overview:read` | ✓ | ✓ |
+| `profile:read` | ✓ | ✓ |
+| `docs:read` | ✓ | ✓ |
+| `docs:write` | ✓ | ✓ |
+| `discussion:read` | ✓ | ✓ |
+| `discussion:write` | ✓ | ✓ |
+| `discussion:delete` | ✓ | — |
+| 所有 admin: 权限 | ✓ | — |
+| `system:manage` | ✓ | — |
 
 ### 初始化逻辑
 
@@ -430,6 +530,8 @@ MarkdownDocument ──1:N── MarkdownDocumentVersion
 | `#dashboard` | 仪表盘（默认） | 登录即可 |
 | `#docs` | Markdown 文档编辑器 | `docs:read` |
 | `#docs?q=keyword` | 文档搜索 | `docs:read` |
+| `#community` | 社区讨论 | `discussion:read` |
+| `#profile` | 个人中心 | 登录即可 |
 | `#admin/overview` | 后台 - 安全态势 | 对应 admin 权限 |
 | `#admin/users` | 后台 - 用户管理 | `admin:users:read` |
 | `#admin/roles` | 后台 - 角色权限 | `admin:roles:read` |
@@ -448,13 +550,30 @@ App.vue（根组件 — 持有全部状态、API 调用、路由逻辑）
 └── WorkspaceShell.vue        ← 登录后显示（布局外壳）
     ├── 侧边栏（可折叠、导航按钮、用户卡片、注销）
     ├── 顶栏（页面标题、面包屑、最后登录时间）
-    ├── Toast 通知
+    ├── Toast 通知（Vue Transition 动画）
     │
     └── 内容区（通过 slot）:
         ├── DashboardPage.vue     ← 欢迎横幅、统计卡片、最近文档、账户信息
         ├── DocsPage.vue          ← 文档列表侧栏 + Markdown 编辑器 + 版本历史
+        ├── CommunityPage.vue     ← 帖子列表 + 详情 + 回复（带 GSAP 入场动画）+ 点赞/收藏/分享
+        ├── MyProfilePage.vue     ← 个人中心（用户信息 + 我的帖子/点赞/收藏 标签页）
         └── AdminPage.vue         ← 多 Tab 后台管理
 ```
+
+### 动画系统
+
+项目使用 GSAP（GreenSock Animation Platform）提供页面动画效果：
+
+| 组件 | 动画效果 |
+|---|---|
+| App.vue | 页面切换时整体淡入上移 |
+| WorkspaceShell.vue | 侧边栏导航项从左滑入 |
+| DashboardPage.vue | 欢迎横幅缩放渐入 → 统计卡片依次滑入 → 数字递增计数 → 文档列表交错入场 |
+| CommunityPage.vue | 帖子卡片列表交错从下滑入 → 回复列表依次滑入 |
+| DocsPage.vue | 侧边栏从左滑入 → 文档列表交错入场 → 编辑器内容区淡入 |
+| AdminPage.vue | 管理标签栏渐入 → 统计卡片/用户卡片/日志卡片交错从下滑入 |
+
+所有动画统一使用 `power2.out` 缓动函数，通过 `gsap.timeline` 编排时序。
 
 ### 核心前端特性
 
@@ -463,6 +582,7 @@ App.vue（根组件 — 持有全部状态、API 调用、路由逻辑）
 - **记住密码**：用户名/密码存储在 localStorage
 - **权限驱动 UI**：侧边栏导航和管理 Tab 根据用户权限条件渲染
 - **API 层**：统一 `apiRequest()` 方法，使用 `fetch()` + `credentials: 'include'`，401 时自动重置客户端会话
+- **GSAP 动画**：组件挂载时通过 `gsap.timeline` 编排入场动画，支持交错（stagger）和缓动
 - **设计系统**：CSS 变量、DM Sans 字体、暖色调（accent: `#c2410c`）、响应式断点 1024px / 768px / 520px
 
 ---
@@ -571,7 +691,7 @@ npm run serve
 
 **5. 登录**
 
-- 超管账户：`root` / `rootYsalu`
+- 超管账户：`rootadmin` / `Root@123456`
 
 ---
 
@@ -629,15 +749,28 @@ TESTY_ROOT_PASSWORD: your_admin_password
 
 1. 在 `PermissionCodes.java` 中添加权限常量
 2. 在 `SecurityDataInitializer.java` 中添加初始化逻辑
-3. 在 Controller 方法上添加 `@RequirePermission` 注解
-4. 在前端根据权限控制 UI 显示
+3. 在 `all()` 方法中添加新常量
+4. 在 `run()` 方法中添加 `permissions.put(...)` 条目
+5. 需要为 USER 角色开启时，在 `ensureRolePermission(userRole, ...)` 中添加调用
+6. 在 Controller 方法上添加 `sessionAuthorization.requirePermission(session, PermissionCodes.XXX)`
+7. 在前端 `App.vue` 中添加对应的计算属性和条件渲染
 
 ### 新增 API 接口
 
 1. 在 `backend/app/src/main/java/com/ysalu/web/` 下创建或编辑 Controller
-2. 如需新实体，在 `backend/modules/repository/src/main/java/com/ysalu/domain/` 下创建
-3. 如需新业务逻辑，在 `backend/modules/service/` 下创建 Service
-4. 前端在 `App.vue` 的 `apiRequest()` 方法调用新接口
+2. 如需新实体，在 `backend/modules/repository/src/main/java/com/ysalu/domain/` 下创建 JPA 实体
+3. 在 `backend/modules/repository/src/main/java/com/ysalu/repository/` 下创建 Repository 接口
+4. 如需新业务逻辑，在 `backend/modules/service/` 下创建 Service（如果是一个独立模块，遵循 document 模块的 pom 依赖模式）
+5. 前端在 `App.vue` 的 `apiRequest()` 方法调用新接口，在相应组件中处理 UI
+
+### 新增前端页面
+
+1. 在 `frontend/web/src/components/` 下创建新组件
+2. 在 `App.vue` 的 `components` 选项中注册
+3. 在 template 的 WorkspaceShell slot 中添加 `v-if` / `v-else-if` 分支
+4. 在 `syncFromHash()` 和 `updateHash()` 中添加 hash 路由
+5. 在 `WorkspaceShell.vue` 中添加侧边栏导航按钮和 `pageTitle` 映射
+6. 将 `:can-read-xxx` prop 从 App.vue 传递到 WorkspaceShell
 
 ### 修改数据库字段
 
@@ -645,8 +778,13 @@ TESTY_ROOT_PASSWORD: your_admin_password
 2. Hibernate 会在启动时自动执行 DDL 更新（`ddl-auto=update`）
 3. 注意：删除字段或修改类型需要手动处理数据迁移
 
-### 前端新增页面
+### 添加页面动画
 
-1. 在 `frontend/web/src/components/` 下创建新组件
-2. 在 `App.vue` 中添加 hash 路由判断和组件引用
-3. 在 `WorkspaceShell.vue` 中添加侧边栏导航按钮
+项目使用 GSAP 实现动画，遵循以下模式：
+
+1. 在组件 `<script>` 中导入 `import { gsap } from "gsap"`
+2. 在 `mounted()` 中调用动画方法
+3. 使用 `gsap.timeline({ defaults: { ease: "power2.out" } })` 编排动画序列
+4. 使用 `$refs` 获取 DOM 元素引用
+5. 配合 `stagger` 参数实现列表交错动画
+6. 使用 `clearProps: "transform"` 在动画结束后清除内联样式（避免影响后续布局）
